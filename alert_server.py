@@ -47,24 +47,31 @@ def run_background_scanner():
     print("👉 AI 시황 브리핑 생성 중...")
     ai_briefing = summarize_daily_briefing(news_articles)
     
-    # 2. 추천 경매 매물 1건 수집
-    print("👉 오늘의 추천 경매 매물 탐색 중...")
-    auction_msg = ""
+    # 2. 핵심 참고 링크 (뉴스 원본 및 유튜브)
+    print("👉 참고 소스 링크 수집 중...")
+    source_msg = "🔗 <b>[오늘의 핵심 참고 자료]</b>\n\n"
+    
+    # 뉴스 원본 링크 상위 2개
+    if news_articles:
+        for i, article in enumerate(news_articles[:2]):
+            title = article.get('title', '').replace('<b>', '').replace('</b>', '').replace('&quot;', '"')
+            link = article.get('link', '')
+            source_msg += f"📰 <b>{title[:25]}...</b>\n{link}\n\n"
+            
+    # 유튜브 추천 영상
     try:
-        raw_blogs = engine.fetch_naver_search("전국 아파트 경매 추천 물건", endpoint="blog", display=1)
-        if raw_blogs:
-            b = raw_blogs[0]
-            title = b.get('title', '').replace('<b>', '').replace('</b>', '').replace('&quot;', '"')
-            link = b.get('link', '')
-            auction_msg += f"🚨 <b>[오늘의 전국 AI 추천 경매 물건]</b>\n"
-            auction_msg += f"📍 <b>지역:</b> 전국 (인기 매물)\n"
-            auction_msg += f"🏢 <b>내용:</b> {title}\n"
-            auction_msg += f"🔗 <b>상세보기 링크:</b>\n{link}\n"
+        from inference_engine import search_ddg
+        yt_results = search_ddg("부동산 시황 분석 site:youtube.com", max_results=1)
+        if yt_results:
+            yt = yt_results[0]
+            yt_title = yt.get('title', '').split(' - YouTube')[0].strip()
+            yt_link = yt.get('href', '')
+            source_msg += f"📺 <b>[유튜브 분석 추천] {yt_title[:25]}...</b>\n{yt_link}\n"
     except Exception as e:
-        print("경매 수집 오류:", e)
+        print("유튜브 수집 오류:", e)
         
     # 3. 세트 메뉴 조립 및 텔레그램 전송
-    final_msg = f"🌅 <b>[TERI 일일 부동산 시황 브리핑]</b>\n\n{ai_briefing}\n\n======================\n\n{auction_msg}"
+    final_msg = f"🌅 <b>[TERI 일일 부동산 시황 브리핑]</b>\n\n{ai_briefing}\n\n======================\n\n{source_msg}"
     
     send_telegram_alert(final_msg)
     print("✅ 일일 스캔 및 브리핑 전송 완료.")
