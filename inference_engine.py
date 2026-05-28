@@ -62,7 +62,7 @@ def dynamic_enrich_data(prop_name, row):
         body_text = " ".join([r.get("body", "") for r in search_res])
         try:
             url = "https://api.openai.com/v1/chat/completions"
-            headers = {"Authorization": "Bearer os.getenv("OPENAI_API_KEY")", "Content-Type": "application/json"}
+            headers = {"Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}", "Content-Type": "application/json"}
             data = {
                 "model": "gpt-4o-mini",
                 "messages": [{"role": "system", "content": "당신은 부동산 임장 전문 요약 AI입니다. 주어진 텍스트에서 이 아파트의 핵심 장점과 단점, 거주민들의 생생한 분위기를 2문장으로 매끄럽게 요약하세요."},
