@@ -34,29 +34,40 @@ def run_background_scanner():
     # For now, we rely on the bot sending everything it finds.
     print(f"\n[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 정기 AI 웹 스캔 시작...")
     
-    for region in TARGET_REGIONS:
-        print(f"👉 '{region}' 일대 실시간 매물 탐색 중...")
-        # Simulating fetch
-        try:
-            raw_blogs = engine.fetch_naver_search(f"{region} 경매 신건", endpoint="blog", display=3)
-            
-            for b in raw_blogs:
-                title = b.get('title', '').replace('<b>', '').replace('</b>', '').replace('&quot;', '"')
-                desc = b.get('description', '').replace('<b>', '').replace('</b>', '')
-                link = b.get('link', '')
-                
-                msg = f"🚨 <b>[새로운 경매 물건 포착]</b>\n\n"
-                msg += f"📍 <b>지역:</b> {region}\n"
-                msg += f"🏢 <b>내용:</b> {title}\n"
-                msg += f"🔗 <b>상세보기 링크:</b>\n{link}\n\n"
-                msg += f"💡 대시보드에서 상세 내역을 확인하세요."
-                
-                send_telegram_alert(msg)
-                
-        except Exception as e:
-            print(f"[{region}] 스캔 오류: {e}")
-            
-        time.sleep(2) # 봇 차단 방지 딜레이
+    # 1. 시황 및 핫플레이스 브리핑 수집
+    print("👉 부동산 시황 및 핫플레이스 뉴스 수집 중...")
+    news_articles = []
+    try:
+        news_articles.extend(engine.fetch_naver_search("부동산 핫플레이스", endpoint="news", display=5))
+        news_articles.extend(engine.fetch_naver_search("서울 재개발 동향", endpoint="news", display=5))
+    except Exception as e:
+        print("뉴스 수집 오류:", e)
+        
+    from inference_engine import summarize_daily_briefing
+    print("👉 AI 시황 브리핑 생성 중...")
+    ai_briefing = summarize_daily_briefing(news_articles)
+    
+    # 2. 추천 경매 매물 1건 수집
+    print("👉 오늘의 추천 경매 매물 탐색 중...")
+    auction_msg = ""
+    try:
+        raw_blogs = engine.fetch_naver_search("강남구 경매 신건", endpoint="blog", display=1)
+        if raw_blogs:
+            b = raw_blogs[0]
+            title = b.get('title', '').replace('<b>', '').replace('</b>', '').replace('&quot;', '"')
+            link = b.get('link', '')
+            auction_msg += f"🚨 <b>[오늘의 추천 경매 물건]</b>\n"
+            auction_msg += f"📍 <b>지역:</b> 강남구\n"
+            auction_msg += f"🏢 <b>내용:</b> {title}\n"
+            auction_msg += f"🔗 <b>상세보기 링크:</b>\n{link}\n"
+    except Exception as e:
+        print("경매 수집 오류:", e)
+        
+    # 3. 세트 메뉴 조립 및 텔레그램 전송
+    final_msg = f"🌅 <b>[TERI 일일 부동산 시황 브리핑]</b>\n\n{ai_briefing}\n\n======================\n\n{auction_msg}"
+    
+    send_telegram_alert(final_msg)
+    print("✅ 일일 스캔 및 브리핑 전송 완료.")
         
     print(f"✅ 일일 스캔 완료.")
 
