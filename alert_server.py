@@ -51,13 +51,13 @@ def run_background_scanner():
     print("👉 오늘의 추천 경매 매물 탐색 중...")
     auction_msg = ""
     try:
-        raw_blogs = engine.fetch_naver_search("강남구 경매 신건", endpoint="blog", display=1)
+        raw_blogs = engine.fetch_naver_search("전국 아파트 경매 추천 물건", endpoint="blog", display=1)
         if raw_blogs:
             b = raw_blogs[0]
             title = b.get('title', '').replace('<b>', '').replace('</b>', '').replace('&quot;', '"')
             link = b.get('link', '')
-            auction_msg += f"🚨 <b>[오늘의 추천 경매 물건]</b>\n"
-            auction_msg += f"📍 <b>지역:</b> 강남구\n"
+            auction_msg += f"🚨 <b>[오늘의 전국 AI 추천 경매 물건]</b>\n"
+            auction_msg += f"📍 <b>지역:</b> 전국 (인기 매물)\n"
             auction_msg += f"🏢 <b>내용:</b> {title}\n"
             auction_msg += f"🔗 <b>상세보기 링크:</b>\n{link}\n"
     except Exception as e:
