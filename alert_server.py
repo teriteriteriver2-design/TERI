@@ -48,7 +48,7 @@ def run_background_scanner():
                 msg = f"🚨 <b>[새로운 경매 물건 포착]</b>\n\n"
                 msg += f"📍 <b>지역:</b> {region}\n"
                 msg += f"🏢 <b>내용:</b> {title}\n"
-                msg += f"🔗 <a href='{link}'>상세보기 링크</a>\n\n"
+                msg += f"🔗 <b>상세보기 링크:</b>\n{link}\n\n"
                 msg += f"💡 대시보드에서 상세 내역을 확인하세요."
                 
                 send_telegram_alert(msg)
