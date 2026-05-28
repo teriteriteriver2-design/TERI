@@ -12,6 +12,7 @@ import random
 import datetime
 from dotenv import load_dotenv
 import streamlit.components.v1 as components
+import report_generator
 
 # ========================================================
 # 1. 초기 설정 (초프리미엄 프롭테크 가이드 테마 & V21 DB 캐시)
@@ -1026,6 +1027,22 @@ if menu == "⚖️ 권리분석 & 수익":
 
                 {summary}
                 """)
+                
+                # --- PDF 보고서 생성 ---
+                try:
+                    pdf_bytes = report_generator.generate_pdf_report(
+                        prop_data=st.session_state.get('selected_prop', {}),
+                        analysis_result=f"[말소기준 권리: {malso}]\n{summary}\n안전여부: {safe_status}"
+                    )
+                    st.write("")
+                    st.download_button(
+                        label="📄 원클릭 임장 보고서 (PDF) 다운로드",
+                        data=pdf_bytes,
+                        file_name=f"임장보고서_{p.get('prop_name', '매물')}.pdf",
+                        mime="application/pdf"
+                    )
+                except Exception as e:
+                    st.error(f"보고서 생성 중 오류가 발생했습니다: {e}")
         else:
             st.info("이미지 또는 텍스트를 입력하고 '직접 업로드한 파일로 AI 권리분석 수행' 버튼을 눌러주세요.")
 

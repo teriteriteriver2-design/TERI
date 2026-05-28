@@ -8,8 +8,8 @@ from speedauction_engine import SpeedAuctionEngine
 from inference_engine import dynamic_enrich_data
 
 # [사용자 설정 영역]
-TELEGRAM_BOT_TOKEN = "여기에_봇_토큰을_넣어주세요"  # 예: 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
-TELEGRAM_CHAT_ID = "여기에_채팅_아이디를_넣어주세요"
+TELEGRAM_BOT_TOKEN = "8747565958:AAEDZOSNXyiN2ue9fpWwzpfYtJOKIzh0Hyc"
+TELEGRAM_CHAT_ID = "8689260957"
 TARGET_REGIONS = ["강남구", "서초구", "송파구", "관악구", "수원시"]
 SCAN_INTERVAL_SECONDS = 3600  # 1시간 주기로 스캔
 
