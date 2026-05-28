@@ -38,8 +38,8 @@ def run_background_scanner():
     print("👉 부동산 시황 및 핫플레이스 뉴스 수집 중...")
     news_articles = []
     try:
-        news_articles.extend(engine.fetch_naver_search("부동산 핫플레이스", endpoint="news", display=5))
-        news_articles.extend(engine.fetch_naver_search("서울 재개발 동향", endpoint="news", display=5))
+        news_articles.extend(engine.fetch_naver_search("부동산 핫플레이스", endpoint="news", display=5, sort="date"))
+        news_articles.extend(engine.fetch_naver_search("서울 재개발 동향", endpoint="news", display=5, sort="date"))
     except Exception as e:
         print("뉴스 수집 오류:", e)
         
@@ -55,7 +55,7 @@ def run_background_scanner():
     if news_articles:
         for i, article in enumerate(news_articles[:2]):
             title = article.get('title', '').replace('<b>', '').replace('</b>', '').replace('&quot;', '"')
-            link = article.get('link', '')
+            link = article.get('href', '').replace('\\', '')
             source_msg += f"📰 <b>{title[:25]}...</b>\n{link}\n\n"
             
     # 유튜브 추천 영상
@@ -65,7 +65,7 @@ def run_background_scanner():
         if yt_results:
             yt = yt_results[0]
             yt_title = yt.get('title', '').split(' - YouTube')[0].strip()
-            yt_link = yt.get('href', '')
+            yt_link = yt.get('href', '').replace('\\', '')
             source_msg += f"📺 <b>[유튜브 분석 추천] {yt_title[:25]}...</b>\n{yt_link}\n"
     except Exception as e:
         print("유튜브 수집 오류:", e)
