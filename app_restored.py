@@ -366,336 +366,340 @@ def fetch_sido_data(target_month=None):
     
     return res, df_sales, df_auction
 
-tab_news, tab_search, tab_map, tab_calc, tab_redev, tab_agent = st.tabs([
-    "최신 정책 뉴스", 
-    "토지이용 & 매물 스캔", 
-    "AI 기반 권리분석 & 시장 예측", 
-    "시장 트렌드 & 수익 분석",
-    "재개발 전망 추천",
-    "AI 맞춤형 투자 비서"
-])
+st.sidebar.markdown("---")
+st.sidebar.markdown("## 🧭 메인 메뉴")
+menu = st.sidebar.radio(
+    "원하시는 기능을 선택하세요:",
+    ("📊 데일리 마켓", "🔍 매물 딥스캔", "⚖️ 권리분석 & 수익", "💬 AI 맞춤형 비서")
+)
+
+if menu == "📊 데일리 마켓":
+    tab_cal, tab_news = st.tabs(["📅 AI 부동산 캘린더", "📰 최신 정책 뉴스"])
+elif menu == "🔍 매물 딥스캔":
+    tab_search, tab_redev = st.tabs(["🗺️ 토지이용 & 매물 스캔", "🏙️ 재개발 전망 추천"])
+elif menu == "⚖️ 권리분석 & 수익":
+    tab_map, tab_calc = st.tabs(["🤖 AI 기반 권리분석", "📈 시장 트렌드 & 수익 분석"])
+elif menu == "💬 AI 맞춤형 비서":
+    tab_agent, = st.tabs(["💬 AI 맞춤형 비서"])
+
 
 # --------------------------------------------------------
 # 탭1: 정책 뉴스 (네이버API 연동)
 # --------------------------------------------------------
-with tab_news:
-    st.markdown("<div class='premium-title' style='font-size:24px; margin-bottom:20px;'>AI 부동산 최신 정책 & 시세뉴스</div>", unsafe_allow_html=True)
-    
-    if st.button("네이버 최신 정책 뉴스 AI 분석(Naver API)"):
-        with st.spinner("네이버 최신 정책 뉴스 스캔 및 GPT-4로 정책 요약 분석 중... (약 10~15초 소요)"):
-            news_feed = fetch_naver_news("부동산 금리 정책 경매", 10)
-            st.session_state['news_feed'] = news_feed
-            st.session_state['policy_summary'] = sa_engine.summarize_policy_news(news_feed) if sa_engine else "AI 엔진을 불러오지 못했습니다."
-            
-    if 'policy_summary' in st.session_state:
-        st.markdown("<div style='background:#F8FAFC; border:1px solid #CBD5E1; border-radius:12px; padding:25px; margin-bottom:25px; box-shadow:0 4px 6px rgba(0,0,0,0.05); color:#1E293B;'>", unsafe_allow_html=True)
-        st.markdown(st.session_state['policy_summary'])
-        st.markdown("</div>", unsafe_allow_html=True)
-        
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        st.markdown("<div class='card-title'>최신 부동산 정책 뉴스 전문</div>", unsafe_allow_html=True)
-        for n in st.session_state.get('news_feed', [])[:6]:
-            clean_title = n.get('title', '').replace('<b>', '').replace('</b>', '').replace('&quot;', '"')
-            clean_desc = n.get('description', '').replace('<b>', '').replace('</b>', '').replace('&quot;', '"')
-            st.markdown(f"""
-            <div style='margin-bottom:15px; border-bottom:1px solid #E5E7EB; padding-bottom:10px;'>
-                <a href='{n.get('link', '#')}' target='_blank' style='text-decoration:none; color:#1F2937; font-weight:800; font-size:16px;'>{clean_title}</a>
-                <div style='color:#6B7280; font-size:13px; margin-top:5px; line-height:1.4;'>{clean_desc[:80]}...</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-    with col2:
-        st.markdown("<div class='card-title'>네이버 맞춤형 키워드 뉴스 검색</div>", unsafe_allow_html=True)
-        custom_kw = st.text_input("궁금한 정책이나 키워드를 검색하세요.", placeholder="예: 주택 최초 취득세 완화")
-        if st.button("뉴스 스캔"):
-            if custom_kw:
-                with st.spinner("네이버 API 검색 중..."):
-                    c_news = fetch_naver_news(custom_kw, 5)
-                    for n in c_news:
-                        c_title = n.get('title', '').replace('<b>', '').replace('</b>', '').replace('&quot;', '"')
-                        st.markdown(f"- [{c_title}]({n.get('link')})")
+if menu == "📊 데일리 마켓":
+    with tab_cal:
+        st.markdown("### 📅 부동산 AI 일정 캘린더 (스케줄)")
+        st.info("여기에 법원 매각기일, 한국은행 금리 발표일 등 주요 일정이 추가될 예정입니다.")
+        if st.button("🤖 AI 분석 리포트 생성 (뉴스 & 호재 요약)"):
+            st.success("AI가 최신 동향을 요약했습니다! (추후 실제 데이터 연동)")
 
-# --------------------------------------------------------
-# 탭2: 전국토지이용 & 시세검색(100% 실시간)
-# --------------------------------------------------------
-with tab_search:
-    st.markdown("<div class='card-title'>전국 AI 기반 토지이용 & 시세분석(V2.0)</div>", unsafe_allow_html=True)
-    st.info("전국 법원 경매 API와 시세 스캔하여 법인/개인 매수(매매 및 경매/깡통전세(빨간색) 위험지역에 즉시 렌더링합니다.")
-    
-    # 월 선택 UI 생성 (최근 6개월)
-    now = datetime.datetime.now()
-    month_options = []
-    for i in range(1, 7):
-        m = now.month - i
-        y = now.year
-        if m <= 0:
-            m += 12
-            y -= 1
-        month_options.append(f"{y}년 {m:02d}월")
-    
-    selected_month_label = st.selectbox("스캔할 법원 계열 선택", month_options)
-    sm_y = selected_month_label.split("년")[0]
-    sm_m = selected_month_label.split("월")[0].replace("년", "")
-    selected_month_code = f"{sm_y}{sm_m}"
-    
-    if st.button("전국 존/스팟 AI 스캔 시작", use_container_width=True):
-        with st.spinner(f"법원 API 이용하여 매매/경매 시세집계 및 카카오맵 서버에 렌더링 중... ({selected_month_label})"):
-            heat_data, df_sales, df_auction = fetch_sido_data(selected_month_code)
-            if heat_data:
-                circles_js = ""
-                for spot in heat_data:
-                    color = "#3B82F6" if spot["type"] == "smart" else "#EF4444"
-                    fillColor = "#60A5FA" if spot["type"] == "smart" else "#F87171"
-                    radius = spot["intensity"]
-                    label = "스마트머니존" if spot["type"] == "smart" else "위험존"
-                    sample_html = ""
-                    if spot["samples"]:
-                        rationale = "법인/개인매집 및 1억 이상 거래량" if spot["type"] == "smart" else "전세가율 80% 이상 위험(깡통 초읽기)"
-                        sample_html = "<div class='samples-box'><b>AI 추천 매물</b><br>"
-                        for s in spot["samples"]:
-                            sample_html += f"<div class='sample-item'>{s} <a href='https://hogangnono.com/search?q={s.split()[0]} {s.split()[1] if len(s.split())>1 else s.split()[0]}' target='_blank'>[호갱노노]</a></div>"
-                        sample_html += f"<div class='rationale'>* <b>추천 근거</b>: {rationale}</div>"
-                        sample_html += "</div>"
-    
-                    circles_js += f"""
-                    var circle = new kakao.maps.Circle({{
-                        center: new kakao.maps.LatLng({spot['lat']}, {spot['lon']}),
-                        radius: {radius},
-                        strokeWeight: 2,
-                        strokeColor: '{color}',
-                        strokeOpacity: 0.8,
-                        strokeStyle: 'solid',
-                        fillColor: '{fillColor}',
-                        fillOpacity: 0.5
-                    }});
-                    circle.setMap(map);
-                    var overlay = new kakao.maps.CustomOverlay({{
-                        position: new kakao.maps.LatLng({spot['lat']}, {spot['lon']}),
-                        content: `<div class="interactive-overlay" style="border-left: 4px solid {color};">
-                                    <div class="overlay-header">
-                                        <span class="title">{spot["name"]}</span><br>
-                                        <span class="label" style="color: {color};">{label} <span class="sep">|</span> {spot["count"]:,}</span>
-                                    </div>
-                                    {sample_html}
-                                  </div>`,
-                        yAnchor: 1.5,
-                        clickable: true,
-                        zIndex: 3
-                    }});
-                    overlay.setMap(map);
-                    """
+if menu == "📊 데일리 마켓":
+    with tab_news:
+        st.markdown("<div class='premium-title' style='font-size:24px; margin-bottom:20px;'>AI 부동산 최신 정책 & 시세뉴스</div>", unsafe_allow_html=True)
 
-                html_map = f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=1a67748f395019b43d48caac98382575"></script>
-    <style>
-        #map {{ width: 100%; height: 500px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }}
-        .legend {{ position: absolute; bottom: 30px; left: 20px; z-index: 10; background: rgba(255,255,255,0.95); padding: 15px; border-radius: 10px; border: 1px solid #E2E8F0; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }}
-        .legend-title {{ font-size: 14px; font-weight: 900; margin-bottom: 8px; color: #1E293B; }}
-        .legend-item {{ display: flex; align-items: center; margin-bottom: 5px; font-weight: bold; font-size: 12px; color: #475569; }}
-        .color-box {{ width: 16px; height: 16px; border-radius: 4px; margin-right: 8px; }}
-        .legend-rationale {{ font-size: 11px; color: #64748B; margin-top: 8px; border-top: 1px dashed #E2E8F0; padding-top: 8px; line-height: 1.4; }}
-        
-        /* Interactive Overlay CSS */
-        .interactive-overlay {{ background: rgba(255,255,255,0.95); padding: 5px 10px; border-radius: 8px; font-size: 13px; font-family: sans-serif; box-shadow: 0 4px 10px rgba(0,0,0,0.15); transition: all 0.3s ease; cursor: pointer; }}
-        .interactive-overlay:hover {{ padding: 10px; background: white; z-index: 100; transform: scale(1.05); }}
-        .interactive-overlay .title {{ font-weight: 900; color: #1E293B; }}
-        .interactive-overlay .label {{ font-weight: bold; }}
-        .interactive-overlay .sep {{ color: #64748B; }}
-        .interactive-overlay .samples-box {{ display: none; margin-top: 8px; border-top: 1px dashed #CBD5E1; padding-top: 8px; font-size: 11px; color: #334155; }}
-        .interactive-overlay:hover .samples-box {{ display: block; }}
-        .interactive-overlay .sample-item {{ margin-bottom: 3px; }}
-        .interactive-overlay .rationale {{ font-size: 10px; color: #64748B; margin-top: 6px; padding-top: 4px; border-top: 1px dashed #E2E8F0; line-height: 1.3; }}
-        .interactive-overlay a {{ color: #2563EB; text-decoration: none; font-weight: bold; }}
-        .interactive-overlay a:hover {{ text-decoration: underline; }}
-    
-    </style>
-</head>
-<body style="margin:0; padding:0;">
-    <div style="position: relative;">
-        <div id="map"></div>
-        <div class="legend">
-            <div class="legend-title">법원 경매 데이터(월 기준)</div>
-            <div class="legend-item"><div class="color-box" style="background: #60A5FA; border: 2px solid #3B82F6;"></div> 스마트머니존 (매매/법인 급증)</div>
-            <div class="legend-item"><div class="color-box" style="background: #F87171; border: 2px solid #EF4444;"></div> 위험존(경매/전세가율 위험)</div>
-            <div class="legend-rationale">
-                <b>AI 매물 추천 알고리즘 체크:</b><br>
-                - <b>스마트머니존:</b> 자금력 진입 및 방어 경직성이 확보됨<span style="color:#2563EB"><b>[1억 이상 거래량]</b></span> 우선 스캔<br>
-                - <b>위험존</b> 전세가율 80% 이상 위험존 <span style="color:#DC2626"><b>[전세가율 80%+ 깡통 초읽기]</b></span> 우선 스캔
-            </div>
-        </div>
-    </div>
-    <script>
-        var mapContainer = document.getElementById('map'),
-            mapOption = {{ center: new kakao.maps.LatLng(36.35, 127.38), level: 12 }};
-        var map = new kakao.maps.Map(mapContainer, mapOption); 
-        {circles_js}
-    </script>
-</body>
-</html>
-"""
-                components.html(html_map, height=520)
-                st.success("법원 API 데이터 로딩 완료! 지도를 통해 가격할 지역을 확인하세요.")
+        if st.button("네이버 최신 정책 뉴스 AI 분석(Naver API)"):
+            with st.spinner("네이버 최신 정책 뉴스 스캔 및 GPT-4로 정책 요약 분석 중... (약 10~15초 소요)"):
+                news_feed = fetch_naver_news("부동산 금리 정책 경매", 10)
+                st.session_state['news_feed'] = news_feed
+                st.session_state['policy_summary'] = sa_engine.summarize_policy_news(news_feed) if sa_engine else "AI 엔진을 불러오지 못했습니다."
 
-                # 월별 통계 지표 표시
-                st.markdown(f"<div style='margin-top:15px; padding:15px; background:#F8FAFC; border-radius:10px; border:1px solid #E2E8F0;'>", unsafe_allow_html=True)
-                st.markdown(f"#### {selected_month_label} 법원 경매 추천 데이터 (전국 기준)")
-                # AI 분석 이유 (덤 분석)
-                sales_reasons = [
-                    "자금력으로 3040 수요자 매수 집중",
-                    "전세가 급등폭으로 오른 가격 조정 압력 하락 진입",
-                    "심리적 갈아타기 수요 및 매수세 조정 기대",
-                    "군소/지방중심 급매물진 및 방어 지지선 구축",
-                    "비즈니스업 규제 완화 기대감으로 진입장벽 완화"
-                ]
-                auction_reasons = [
-                "21년 만기 대출 만기 거래 (보증금 미반환 및 대출)",
-                "빌라/오피스텔 무자본 투자자들의 강제경매 급증",
-                "고금리 기조로 인해 차주 대출 이자 부담 경매 출회",
-                "금세기 파산자의 자산 매각 물건 발생",
-                "금세가 하락으로 인한 부실 깡통전세 경매 물건 증가"
-                ]
+        if 'policy_summary' in st.session_state:
+            st.markdown("<div style='background:#F8FAFC; border:1px solid #CBD5E1; border-radius:12px; padding:25px; margin-bottom:25px; box-shadow:0 4px 6px rgba(0,0,0,0.05); color:#1E293B;'>", unsafe_allow_html=True)
+            st.markdown(st.session_state['policy_summary'])
+            st.markdown("</div>", unsafe_allow_html=True)
 
-                c1, c2 = st.columns(2)
-                with c1:
-                    st.markdown("**매매 거래량 (유권이전 매매) Top 5**")
-                    if not df_sales.empty:
-                        df_sales['tot_num'] = pd.to_numeric(df_sales['tot'], errors='coerce').fillna(0)
-                        # 지역 중복 계산
-                        agg_sales = df_sales.groupby('adminRegn1Name')['tot_num'].sum().reset_index()
-                        top_sales = agg_sales.sort_values(by='tot_num', ascending=False).head(5)
-                        for idx, row in enumerate(top_sales.iterrows(), 0):
-                            _, r = row
-                            st.write(f"{idx+1}. {r.get('adminRegn1Name', '정보없음')}: **{int(r['tot_num']):,}건**")
-                            st.markdown(f"<div style='font-size:12px; color:#475569; margin-bottom:10px; padding-left:15px; border-left:3px solid #3B82F6;'>🔍 <b>AI 분석:</b> {sales_reasons[idx%len(sales_reasons)]}</div>", unsafe_allow_html=True)
-                    else:
-                        st.write("해당 지역의 매매 데이터가 없습니다.")
-                with c2:
-                    st.markdown("**경매 물건 (경매개시결정) Top 5**")
-                    if not df_auction.empty:
-                        df_auction['tot_num'] = pd.to_numeric(df_auction['tot'], errors='coerce').fillna(0)
-                        agg_auction = df_auction.groupby('adminRegn1Name')['tot_num'].sum().reset_index()
-                        top_auction = agg_auction.sort_values(by='tot_num', ascending=False).head(5)
-                        for idx, row in enumerate(top_auction.iterrows(), 0):
-                            _, r = row
-                            st.write(f"{idx+1}. {r.get('adminRegn1Name', '정보없음')}: **{int(r['tot_num']):,}건**")
-                            st.markdown(f"<div style='font-size:12px; color:#475569; margin-bottom:10px; padding-left:15px; border-left:3px solid #EF4444;'>🔍 <b>AI 분석:</b> {auction_reasons[idx%len(auction_reasons)]}</div>", unsafe_allow_html=True)
-                    else:
-                        st.write("해당 지역의 경매 데이터가 없습니다.")
-                st.markdown("</div><br>", unsafe_allow_html=True)
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            st.markdown("<div class='card-title'>최신 부동산 정책 뉴스 전문</div>", unsafe_allow_html=True)
+            for n in st.session_state.get('news_feed', [])[:6]:
+                clean_title = n.get('title', '').replace('<b>', '').replace('</b>', '').replace('&quot;', '"')
+                clean_desc = n.get('description', '').replace('<b>', '').replace('</b>', '').replace('&quot;', '"')
+                st.markdown(f"""
+                <div style='margin-bottom:15px; border-bottom:1px solid #E5E7EB; padding-bottom:10px;'>
+                    <a href='{n.get('link', '#')}' target='_blank' style='text-decoration:none; color:#1F2937; font-weight:800; font-size:16px;'>{clean_title}</a>
+                    <div style='color:#6B7280; font-size:13px; margin-top:5px; line-height:1.4;'>{clean_desc[:80]}...</div>
+                </div>
+                """, unsafe_allow_html=True)
 
-            else:
-                st.error("해당 지역의 데이터를 가져오지 못했습니다.")
-
-    st.markdown("---")
-
-    col1, col2, col3 = st.columns([1,1,2])
-    with col1:
-        st.markdown("**1️⃣ 랜덤 지역/동 검색**")
-        random_regions = [
-            "서울 강남구", "서울 강동구", "서울 마포구", "서울 서초구", "서울 성동구", "서울 송파구", "서울 양천구", "서울 영등포구", "서울 용산구", "서울 은평구",
-            "경기 과천시", "경기 분당구", "경기 성남시", "경기 수원시", "경기 안양시", "경기 의정부시", "경기 파주시", "경기 평택시", "경기 화성시", "경기 하남시",
-            "인천 계양구", "인천 남동구", "인천 부평구", "인천 서구",
-            "부산 남구", "부산 동래구", "부산 부산진구", "부산 해운대구",
-            "대구 달서구", "대구 중구", "대구 수성구",
-            "대전 서구", "대전 유성구", "대전 중구",
-            "광주 북구", "광주 서구", "광주 광산구",
-            "울산 남구", "울산 중구",
-            "세종시", "제주 제주시", "제주 서귀포시", "경남 창원시", "경남 진주시", "경북 포항시", "충남 천안시", "충북 청주시", "전북 전주시", "강원 춘천시"
-        ]
-        search_kw = st.text_input("검색 키워드", value=random.choice(random_regions))
-
-    with col2:
-        st.markdown("**2️⃣ 매물 검색**")
-        scan_clicked = st.button("검색 즉시 시작", use_container_width=True)
-
-    with col3:
-        st.markdown("**3️⃣ [직접입력] 매물 정보 (파산물건 직접 입력)**")
-        manual_prop = st.text_input("매물명 (예: 아파트)", key="manual_prop")
-        manual_case = st.text_input("사건번호 (예: 2023타경234)", key="manual_case")
-        if st.button("카카오맵/권리분석 요청 즉시 발송", use_container_width=True):
-            if manual_prop and manual_case:
-                st.session_state['selected_prop'] = {
-                    "prop_name": manual_prop,
-                    "case_number": manual_case,
-                    "price_eval": 100000,
-                    "price_min": 80000,
-                    "lat": 37.5665,
-                    "lon": 126.9780
-                }
-                st.success("매물 정보 저장. 단 3번째 'AI 권리분석' 요청이 완료되었습니다.")
-            else:
-                st.error("매물명과 사건번호를 모두 입력해주세요.")
-
-    st.write("")
-
-    if scan_clicked:
-        if sa_engine:
-            with st.spinner(f"'{search_kw}' 지역의 법원 경매 데이터를 조회 중입니다..."):
-                log_agent(f"'{search_kw}' 지역 매물 검색 시작")
-                live_data = sa_engine.fetch_live_auctions(keyword=search_kw, limit=8)
-                st.session_state['search_results'] = live_data
-            
-                now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                log_agent(f"검색 완료. {len(live_data)}건 발견.")
-                st.toast(f"검색 완료! [{len(live_data)}건 발견]", icon="✅")
-
-    if st.session_state.get('search_results', []):
-        st.info("🔍 **[AI 팩트체크]** 간혹 '2023년 매물'로 검출되는 것이 과거 데이터일 수 있습니다. 경매는 최초 법원 접수 시점 기준으로 사건번호(타경)가 부여되며, 준공 후 차후에 실제 경매가 진행 중인 '가장 최신 매물'이 맞습니다.")
-        st.markdown("<br>", unsafe_allow_html=True)
-    results = st.session_state['search_results']
-    for i in range(0, len(results), 2):
-        cols = st.columns(2)
-        for j in range(2):
-            idx = i + j
-            if idx < len(results):
-                p = results[idx]
-                with cols[j]:
-                    safe_prop_name = str(p['prop_name']).replace('<', '&lt;').replace('>', '&gt;')
-                    safe_status = str(p['status']).replace('<', '&lt;').replace('>', '&gt;')
-                    st.markdown(f"<div class='card-title'>{safe_prop_name} <span class='status-badge'>{safe_status}</span></div>", unsafe_allow_html=True)
-                    p_min = p.get('price_min', 0)
-                    p_eval = p.get('price_eval', 0)
-                    st.write(f"<span style='color:#4B5563; font-weight:800;'>최저가: {format_price(p_min)}</span>", unsafe_allow_html=True)
-                    st.write(f"<span style='color:#9CA3AF; font-size:13px;'>감정가: {format_price(p_eval)} | 사건번호: {p['case_number']}</span>", unsafe_allow_html=True)
-                    if st.button("권리 분석 (지적 권리)", key=f"btn_anal_{idx}"):
-                        st.session_state['selected_prop'] = p
-                        st.toast(f"물건 [{safe_prop_name}] 권리 분석 완료! 간단히 3번째 항목을 클릭하세요.", icon="🔍")
+        with col2:
+            st.markdown("<div class='card-title'>네이버 맞춤형 키워드 뉴스 검색</div>", unsafe_allow_html=True)
+            custom_kw = st.text_input("궁금한 정책이나 키워드를 검색하세요.", placeholder="예: 주택 최초 취득세 완화")
+            if st.button("뉴스 스캔"):
+                if custom_kw:
+                    with st.spinner("네이버 API 검색 중..."):
+                        c_news = fetch_naver_news(custom_kw, 5)
+                        for n in c_news:
+                            c_title = n.get('title', '').replace('<b>', '').replace('</b>', '').replace('&quot;', '"')
+                            st.markdown(f"- [{c_title}]({n.get('link')})")
 
     # --------------------------------------------------------
-    # 탭3: 지도 매장 지적(Leaflet) & 권리분석 (법률 검토)
-# --------------------------------------------------------
-with tab_map:
-    if not st.session_state.get('selected_prop'):
-        st.info("먼저 권리 분석할 매물을 선택해 주세요.")
-    else:
-        p = st.session_state['selected_prop']
-        p_name, p_case = p['prop_name'], p['case_number']
-        lat, lon = p.get('lat', 37.5665), p.get('lon', 126.9780)
-        
-        if lat == 37.5665:  # Default fallback detected, try geocoding
-            try:
-                import urllib.request, urllib.parse, json
-                found = False
-                addr_url = f"https://dapi.kakao.com/v2/local/search/keyword.json?query={urllib.parse.quote(p_name)}"
-                req = urllib.request.Request(addr_url)
-                req.add_header("Authorization", "KakaoAK c7a7fd72636eded70e1d45bd46b24f27")
-                addr_res = urllib.request.urlopen(req)
-                if addr_res.getcode() == 200:
-                    addr_data = json.loads(addr_res.read().decode('utf-8'))
-                    if addr_data.get('documents'):
-                        lon = float(addr_data['documents'][0]['x'])
-                        lat = float(addr_data['documents'][0]['y'])
-                        st.session_state['selected_prop']['lat'] = lat
-                        st.session_state['selected_prop']['lon'] = lon
-                        found = True
-                        
-                if not found:
-                    addr_url = f"https://dapi.kakao.com/v2/local/search/address.json?query={urllib.parse.quote(p_name)}"
+    # 탭2: 전국토지이용 & 시세검색(100% 실시간)
+    # --------------------------------------------------------
+if menu == "🔍 매물 딥스캔":
+    with tab_search:
+        st.markdown("<div class='card-title'>전국 AI 기반 토지이용 & 시세분석(V2.0)</div>", unsafe_allow_html=True)
+        st.info("전국 법원 경매 API와 시세 스캔하여 법인/개인 매수(매매 및 경매/깡통전세(빨간색) 위험지역에 즉시 렌더링합니다.")
+
+        # 월 선택 UI 생성 (최근 6개월)
+        now = datetime.datetime.now()
+        month_options = []
+        for i in range(1, 7):
+            m = now.month - i
+            y = now.year
+            if m <= 0:
+                m += 12
+                y -= 1
+            month_options.append(f"{y}년 {m:02d}월")
+
+        selected_month_label = st.selectbox("스캔할 법원 계열 선택", month_options)
+        sm_y = selected_month_label.split("년")[0]
+        sm_m = selected_month_label.split("월")[0].replace("년", "")
+        selected_month_code = f"{sm_y}{sm_m}"
+
+        if st.button("전국 존/스팟 AI 스캔 시작", use_container_width=True):
+            with st.spinner(f"법원 API 이용하여 매매/경매 시세집계 및 카카오맵 서버에 렌더링 중... ({selected_month_label})"):
+                heat_data, df_sales, df_auction = fetch_sido_data(selected_month_code)
+                if heat_data:
+                    circles_js = ""
+                    for spot in heat_data:
+                        color = "#3B82F6" if spot["type"] == "smart" else "#EF4444"
+                        fillColor = "#60A5FA" if spot["type"] == "smart" else "#F87171"
+                        radius = spot["intensity"]
+                        label = "스마트머니존" if spot["type"] == "smart" else "위험존"
+                        sample_html = ""
+                        if spot["samples"]:
+                            rationale = "법인/개인매집 및 1억 이상 거래량" if spot["type"] == "smart" else "전세가율 80% 이상 위험(깡통 초읽기)"
+                            sample_html = "<div class='samples-box'><b>AI 추천 매물</b><br>"
+                            for s in spot["samples"]:
+                                sample_html += f"<div class='sample-item'>{s} <a href='https://hogangnono.com/search?q={s.split()[0]} {s.split()[1] if len(s.split())>1 else s.split()[0]}' target='_blank'>[호갱노노]</a></div>"
+                            sample_html += f"<div class='rationale'>* <b>추천 근거</b>: {rationale}</div>"
+                            sample_html += "</div>"
+
+                        circles_js += f"""
+                        var circle = new kakao.maps.Circle({{
+                            center: new kakao.maps.LatLng({spot['lat']}, {spot['lon']}),
+                            radius: {radius},
+                            strokeWeight: 2,
+                            strokeColor: '{color}',
+                            strokeOpacity: 0.8,
+                            strokeStyle: 'solid',
+                            fillColor: '{fillColor}',
+                            fillOpacity: 0.5
+                        }});
+                        circle.setMap(map);
+                        var overlay = new kakao.maps.CustomOverlay({{
+                            position: new kakao.maps.LatLng({spot['lat']}, {spot['lon']}),
+                            content: `<div class="interactive-overlay" style="border-left: 4px solid {color};">
+                                        <div class="overlay-header">
+                                            <span class="title">{spot["name"]}</span><br>
+                                            <span class="label" style="color: {color};">{label} <span class="sep">|</span> {spot["count"]:,}</span>
+                                        </div>
+                                        {sample_html}
+                                      </div>`,
+                            yAnchor: 1.5,
+                            clickable: true,
+                            zIndex: 3
+                        }});
+                        overlay.setMap(map);
+                        """
+
+                    html_map = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=1a67748f395019b43d48caac98382575"></script>
+        <style>
+            #map {{ width: 100%; height: 500px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }}
+            .legend {{ position: absolute; bottom: 30px; left: 20px; z-index: 10; background: rgba(255,255,255,0.95); padding: 15px; border-radius: 10px; border: 1px solid #E2E8F0; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }}
+            .legend-title {{ font-size: 14px; font-weight: 900; margin-bottom: 8px; color: #1E293B; }}
+            .legend-item {{ display: flex; align-items: center; margin-bottom: 5px; font-weight: bold; font-size: 12px; color: #475569; }}
+            .color-box {{ width: 16px; height: 16px; border-radius: 4px; margin-right: 8px; }}
+            .legend-rationale {{ font-size: 11px; color: #64748B; margin-top: 8px; border-top: 1px dashed #E2E8F0; padding-top: 8px; line-height: 1.4; }}
+
+            /* Interactive Overlay CSS */
+            .interactive-overlay {{ background: rgba(255,255,255,0.95); padding: 5px 10px; border-radius: 8px; font-size: 13px; font-family: sans-serif; box-shadow: 0 4px 10px rgba(0,0,0,0.15); transition: all 0.3s ease; cursor: pointer; }}
+            .interactive-overlay:hover {{ padding: 10px; background: white; z-index: 100; transform: scale(1.05); }}
+            .interactive-overlay .title {{ font-weight: 900; color: #1E293B; }}
+            .interactive-overlay .label {{ font-weight: bold; }}
+            .interactive-overlay .sep {{ color: #64748B; }}
+            .interactive-overlay .samples-box {{ display: none; margin-top: 8px; border-top: 1px dashed #CBD5E1; padding-top: 8px; font-size: 11px; color: #334155; }}
+            .interactive-overlay:hover .samples-box {{ display: block; }}
+            .interactive-overlay .sample-item {{ margin-bottom: 3px; }}
+            .interactive-overlay .rationale {{ font-size: 10px; color: #64748B; margin-top: 6px; padding-top: 4px; border-top: 1px dashed #E2E8F0; line-height: 1.3; }}
+            .interactive-overlay a {{ color: #2563EB; text-decoration: none; font-weight: bold; }}
+            .interactive-overlay a:hover {{ text-decoration: underline; }}
+
+        </style>
+    </head>
+    <body style="margin:0; padding:0;">
+        <div style="position: relative;">
+            <div id="map"></div>
+            <div class="legend">
+                <div class="legend-title">법원 경매 데이터(월 기준)</div>
+                <div class="legend-item"><div class="color-box" style="background: #60A5FA; border: 2px solid #3B82F6;"></div> 스마트머니존 (매매/법인 급증)</div>
+                <div class="legend-item"><div class="color-box" style="background: #F87171; border: 2px solid #EF4444;"></div> 위험존(경매/전세가율 위험)</div>
+                <div class="legend-rationale">
+                    <b>AI 매물 추천 알고리즘 체크:</b><br>
+                    - <b>스마트머니존:</b> 자금력 진입 및 방어 경직성이 확보됨<span style="color:#2563EB"><b>[1억 이상 거래량]</b></span> 우선 스캔<br>
+                    - <b>위험존</b> 전세가율 80% 이상 위험존 <span style="color:#DC2626"><b>[전세가율 80%+ 깡통 초읽기]</b></span> 우선 스캔
+                </div>
+            </div>
+        </div>
+        <script>
+            var mapContainer = document.getElementById('map'),
+                mapOption = {{ center: new kakao.maps.LatLng(36.35, 127.38), level: 12 }};
+            var map = new kakao.maps.Map(mapContainer, mapOption); 
+            {circles_js}
+        </script>
+    </body>
+    </html>
+    """
+                    components.html(html_map, height=520)
+                    st.success("법원 API 데이터 로딩 완료! 지도를 통해 가격할 지역을 확인하세요.")
+
+                    # 월별 통계 지표 표시
+                    st.markdown(f"<div style='margin-top:15px; padding:15px; background:#F8FAFC; border-radius:10px; border:1px solid #E2E8F0;'>", unsafe_allow_html=True)
+                    st.markdown(f"#### {selected_month_label} 법원 경매 추천 데이터 (전국 기준)")
+                    # AI 분석 이유 (덤 분석)
+                    sales_reasons = [
+                        "자금력으로 3040 수요자 매수 집중",
+                        "전세가 급등폭으로 오른 가격 조정 압력 하락 진입",
+                        "심리적 갈아타기 수요 및 매수세 조정 기대",
+                        "군소/지방중심 급매물진 및 방어 지지선 구축",
+                        "비즈니스업 규제 완화 기대감으로 진입장벽 완화"
+                    ]
+                    auction_reasons = [
+                    "21년 만기 대출 만기 거래 (보증금 미반환 및 대출)",
+                    "빌라/오피스텔 무자본 투자자들의 강제경매 급증",
+                    "고금리 기조로 인해 차주 대출 이자 부담 경매 출회",
+                    "금세기 파산자의 자산 매각 물건 발생",
+                    "금세가 하락으로 인한 부실 깡통전세 경매 물건 증가"
+                    ]
+
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        st.markdown("**매매 거래량 (유권이전 매매) Top 5**")
+                        if not df_sales.empty:
+                            df_sales['tot_num'] = pd.to_numeric(df_sales['tot'], errors='coerce').fillna(0)
+                            # 지역 중복 계산
+                            agg_sales = df_sales.groupby('adminRegn1Name')['tot_num'].sum().reset_index()
+                            top_sales = agg_sales.sort_values(by='tot_num', ascending=False).head(5)
+                            for idx, row in enumerate(top_sales.iterrows(), 0):
+                                _, r = row
+                                st.write(f"{idx+1}. {r.get('adminRegn1Name', '정보없음')}: **{int(r['tot_num']):,}건**")
+                                st.markdown(f"<div style='font-size:12px; color:#475569; margin-bottom:10px; padding-left:15px; border-left:3px solid #3B82F6;'>🔍 <b>AI 분석:</b> {sales_reasons[idx%len(sales_reasons)]}</div>", unsafe_allow_html=True)
+                        else:
+                            st.write("해당 지역의 매매 데이터가 없습니다.")
+                    with c2:
+                        st.markdown("**경매 물건 (경매개시결정) Top 5**")
+                        if not df_auction.empty:
+                            df_auction['tot_num'] = pd.to_numeric(df_auction['tot'], errors='coerce').fillna(0)
+                            agg_auction = df_auction.groupby('adminRegn1Name')['tot_num'].sum().reset_index()
+                            top_auction = agg_auction.sort_values(by='tot_num', ascending=False).head(5)
+                            for idx, row in enumerate(top_auction.iterrows(), 0):
+                                _, r = row
+                                st.write(f"{idx+1}. {r.get('adminRegn1Name', '정보없음')}: **{int(r['tot_num']):,}건**")
+                                st.markdown(f"<div style='font-size:12px; color:#475569; margin-bottom:10px; padding-left:15px; border-left:3px solid #EF4444;'>🔍 <b>AI 분석:</b> {auction_reasons[idx%len(auction_reasons)]}</div>", unsafe_allow_html=True)
+                        else:
+                            st.write("해당 지역의 경매 데이터가 없습니다.")
+                    st.markdown("</div><br>", unsafe_allow_html=True)
+
+                else:
+                    st.error("해당 지역의 데이터를 가져오지 못했습니다.")
+
+        st.markdown("---")
+
+        col1, col2, col3 = st.columns([1,1,2])
+        with col1:
+            st.markdown("**1️⃣ 랜덤 지역/동 검색**")
+            random_regions = [
+                "서울 강남구", "서울 강동구", "서울 마포구", "서울 서초구", "서울 성동구", "서울 송파구", "서울 양천구", "서울 영등포구", "서울 용산구", "서울 은평구",
+                "경기 과천시", "경기 분당구", "경기 성남시", "경기 수원시", "경기 안양시", "경기 의정부시", "경기 파주시", "경기 평택시", "경기 화성시", "경기 하남시",
+                "인천 계양구", "인천 남동구", "인천 부평구", "인천 서구",
+                "부산 남구", "부산 동래구", "부산 부산진구", "부산 해운대구",
+                "대구 달서구", "대구 중구", "대구 수성구",
+                "대전 서구", "대전 유성구", "대전 중구",
+                "광주 북구", "광주 서구", "광주 광산구",
+                "울산 남구", "울산 중구",
+                "세종시", "제주 제주시", "제주 서귀포시", "경남 창원시", "경남 진주시", "경북 포항시", "충남 천안시", "충북 청주시", "전북 전주시", "강원 춘천시"
+            ]
+            search_kw = st.text_input("검색 키워드", value=random.choice(random_regions))
+
+        with col2:
+            st.markdown("**2️⃣ 매물 검색**")
+            scan_clicked = st.button("검색 즉시 시작", use_container_width=True)
+
+        with col3:
+            st.markdown("**3️⃣ [직접입력] 매물 정보 (파산물건 직접 입력)**")
+            manual_prop = st.text_input("매물명 (예: 아파트)", key="manual_prop")
+            manual_case = st.text_input("사건번호 (예: 2023타경234)", key="manual_case")
+            if st.button("카카오맵/권리분석 요청 즉시 발송", use_container_width=True):
+                if manual_prop and manual_case:
+                    st.session_state['selected_prop'] = {
+                        "prop_name": manual_prop,
+                        "case_number": manual_case,
+                        "price_eval": 100000,
+                        "price_min": 80000,
+                        "lat": 37.5665,
+                        "lon": 126.9780
+                    }
+                    st.success("매물 정보 저장. 단 3번째 'AI 권리분석' 요청이 완료되었습니다.")
+                else:
+                    st.error("매물명과 사건번호를 모두 입력해주세요.")
+
+        st.write("")
+
+        if scan_clicked:
+            if sa_engine:
+                with st.spinner(f"'{search_kw}' 지역의 법원 경매 데이터를 조회 중입니다..."):
+                    log_agent(f"'{search_kw}' 지역 매물 검색 시작")
+                    live_data = sa_engine.fetch_live_auctions(keyword=search_kw, limit=8)
+                    st.session_state['search_results'] = live_data
+
+                    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    log_agent(f"검색 완료. {len(live_data)}건 발견.")
+                    st.toast(f"검색 완료! [{len(live_data)}건 발견]", icon="✅")
+
+        if st.session_state.get('search_results', []):
+            st.info("🔍 **[AI 팩트체크]** 간혹 '2023년 매물'로 검출되는 것이 과거 데이터일 수 있습니다. 경매는 최초 법원 접수 시점 기준으로 사건번호(타경)가 부여되며, 준공 후 차후에 실제 경매가 진행 중인 '가장 최신 매물'이 맞습니다.")
+            st.markdown("<br>", unsafe_allow_html=True)
+        results = st.session_state['search_results']
+        for i in range(0, len(results), 2):
+            cols = st.columns(2)
+            for j in range(2):
+                idx = i + j
+                if idx < len(results):
+                    p = results[idx]
+                    with cols[j]:
+                        safe_prop_name = str(p['prop_name']).replace('<', '&lt;').replace('>', '&gt;')
+                        safe_status = str(p['status']).replace('<', '&lt;').replace('>', '&gt;')
+                        st.markdown(f"<div class='card-title'>{safe_prop_name} <span class='status-badge'>{safe_status}</span></div>", unsafe_allow_html=True)
+                        p_min = p.get('price_min', 0)
+                        p_eval = p.get('price_eval', 0)
+                        st.write(f"<span style='color:#4B5563; font-weight:800;'>최저가: {format_price(p_min)}</span>", unsafe_allow_html=True)
+                        st.write(f"<span style='color:#9CA3AF; font-size:13px;'>감정가: {format_price(p_eval)} | 사건번호: {p['case_number']}</span>", unsafe_allow_html=True)
+                        if st.button("권리 분석 (지적 권리)", key=f"btn_anal_{idx}"):
+                            st.session_state['selected_prop'] = p
+                            st.toast(f"물건 [{safe_prop_name}] 권리 분석 완료! 간단히 3번째 항목을 클릭하세요.", icon="🔍")
+
+        # --------------------------------------------------------
+        # 탭3: 지도 매장 지적(Leaflet) & 권리분석 (법률 검토)
+    # --------------------------------------------------------
+if menu == "⚖️ 권리분석 & 수익":
+    with tab_map:
+        if not st.session_state.get('selected_prop'):
+            st.info("먼저 권리 분석할 매물을 선택해 주세요.")
+        else:
+            p = st.session_state['selected_prop']
+            p_name, p_case = p['prop_name'], p['case_number']
+            lat, lon = p.get('lat', 37.5665), p.get('lon', 126.9780)
+
+            if lat == 37.5665:  # Default fallback detected, try geocoding
+                try:
+                    import urllib.request, urllib.parse, json
+                    found = False
+                    addr_url = f"https://dapi.kakao.com/v2/local/search/keyword.json?query={urllib.parse.quote(p_name)}"
                     req = urllib.request.Request(addr_url)
                     req.add_header("Authorization", "KakaoAK c7a7fd72636eded70e1d45bd46b24f27")
                     addr_res = urllib.request.urlopen(req)
@@ -707,608 +711,625 @@ with tab_map:
                             st.session_state['selected_prop']['lat'] = lat
                             st.session_state['selected_prop']['lon'] = lon
                             found = True
-                            
-                if not found:
-                    st.warning("⚠️ **[지오코딩 실패]** 카카오맵 API가 입력하신 파라미터/주소를 식별하지 못했습니다. ('동2가', '서울 특별시' 등 불필요한 식별자를 제외하고 **'방배동 리안'** 처럼 핵심 이름만 다시 검색해주시기 바랍니다. 확정적 렌더링됩니다.) 현재 지리정보를 기반으로 기본 서울 위치로 표시됩니다.")
+
+                    if not found:
+                        addr_url = f"https://dapi.kakao.com/v2/local/search/address.json?query={urllib.parse.quote(p_name)}"
+                        req = urllib.request.Request(addr_url)
+                        req.add_header("Authorization", "KakaoAK c7a7fd72636eded70e1d45bd46b24f27")
+                        addr_res = urllib.request.urlopen(req)
+                        if addr_res.getcode() == 200:
+                            addr_data = json.loads(addr_res.read().decode('utf-8'))
+                            if addr_data.get('documents'):
+                                lon = float(addr_data['documents'][0]['x'])
+                                lat = float(addr_data['documents'][0]['y'])
+                                st.session_state['selected_prop']['lat'] = lat
+                                st.session_state['selected_prop']['lon'] = lon
+                                found = True
+
+                    if not found:
+                        st.warning("⚠️ **[지오코딩 실패]** 카카오맵 API가 입력하신 파라미터/주소를 식별하지 못했습니다. ('동2가', '서울 특별시' 등 불필요한 식별자를 제외하고 **'방배동 리안'** 처럼 핵심 이름만 다시 검색해주시기 바랍니다. 확정적 렌더링됩니다.) 현재 지리정보를 기반으로 기본 서울 위치로 표시됩니다.")
+                except:
+                    pass
+            p_min = p.get('price_min', 0)
+            p_eval = p.get('price_eval', 0)
+
+            # 가격 추산
+            try:
+                p_eval_val = int(re.sub(r'[^0-9]', '', str(p_eval)))
             except:
-                pass
-        p_min = p.get('price_min', 0)
-        p_eval = p.get('price_eval', 0)
-        
-        # 가격 추산
-        try:
-            p_eval_val = int(re.sub(r'[^0-9]', '', str(p_eval)))
-        except:
-            p_eval_val = 50000
-            
-        try:
-            p_min_val = int(re.sub(r'[^0-9]', '', str(p_min))) if p_min else int(p_eval_val * 0.8)
-        except:
-            p_min_val = int(p_eval_val * 0.8)
-            
-        import datetime
-        import base64
-        market_price_data = None
-        if sa_engine:
-            with st.spinner("시장 분석 중입니다.."):
-                market_price_data = sa_engine.fetch_real_market_price(p_name)
-                
-        if market_price_data:
-            current_market_price = market_price_data["price"]
-            source = market_price_data["source"]
-            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            
-            # [Auto-Correction] LLM 예측 오류: 감정가가 너무 낮게 측정된 경우(예: 5000만원 vs 3.7억 실제인 감정가 보정)
-            if p_eval_val < current_market_price * 0.3:
-                p_eval_val = int(current_market_price * 1.1)  # 감정가는 보통 시세보다 약간 낮게 측정됨
+                p_eval_val = 50000
+
+            try:
+                p_min_val = int(re.sub(r'[^0-9]', '', str(p_min))) if p_min else int(p_eval_val * 0.8)
+            except:
                 p_min_val = int(p_eval_val * 0.8)
-        else:
-            # 시장가를 찾지 못했을 경우, 경매 감정가를 기준으로 AI 추산 시세(감정가 약 105%)를 부여하여 이탈 방지
-            current_market_price = int(p_eval_val * 1.05)
-            source = "AI 추산 (유사 물건 거래 및 감정가 기반 보정)"
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        expected_profit = current_market_price - p_min_val if current_market_price > 0 else 0
+            import datetime
+            import base64
+            market_price_data = None
+            if sa_engine:
+                with st.spinner("시장 분석 중입니다.."):
+                    market_price_data = sa_engine.fetch_real_market_price(p_name)
 
-        st.markdown(f"<div class='premium-title' style='font-size:28px;'>{p_name}</div>", unsafe_allow_html=True)
-        # 프롭테크와 관련된 URL 직접 직결 (가격이상심 차단)
-        clean_p_name = p_name.replace(' 인근 아파트', '').replace(' 아파트매물', '')
-        encoded_p_name = urllib.parse.quote(clean_p_name)
-        st.markdown(f"<div class='alert-box' style='background-color:#F0FDF4; border-color:#22C55E; color:#166534;'>🔍<b>AI 권리분석 자료</b>: 해당 물건의 상세 규제 정보(실거래가구역 및 최신 거래정보)를 아래 링크에서 교차 검토 바랍니다.<br>👉 <a href='https://hogangnono.com/search?q={encoded_p_name}' target='_blank' style='color:#15803D; font-weight:bold; text-decoration:underline;'>호갱노노 시세체크 바로가기(클릭)</a></div>", unsafe_allow_html=True)
+            if market_price_data:
+                current_market_price = market_price_data["price"]
+                source = market_price_data["source"]
+                timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        map_col, anal_col = st.columns([1.1, 1])
-
-        with map_col:
-            st.markdown("<div class='card-title'>📍 초정밀 현장 지도(실적 프롭테크 & 지역편집도)</div>", unsafe_allow_html=True)
-            log_agent(f"카카오맵 좌표준비 위도 {lat}, 경도 {lon}")
-    
-            html_kakao_district = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=1a67748f395019b43d48caac98382575&libraries=services"></script>
-                <style>
-                    #map {{ width: 100%; height: 550px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }}
-                    .custom-marker {{ background: #fff; border: 2px solid #2563EB; border-radius: 20px; padding: 4px 8px; font-size: 11px; font-weight: bold; color: #1E3A8A; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }}
-                    .main-marker {{ background: #EF4444; border: 2px solid white; border-radius: 20px; padding: 5px 10px; font-size: 13px; font-weight: 900; color: white; white-space: nowrap; box-shadow: 0 4px 10px rgba(239,68,68,0.5); }}
-                    #loading {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: flex; justify-content: center; align-items: center; font-weight: bold; color: #2563EB; z-index: 10; border-radius: 16px; }}
-                
-    </style>
-            </head>
-            <body>
-                <div id="map-container" style="position: relative;">
-                    <div id="loading">🔄카카오프롭맵을 로딩중입니다... 잠시만 기다려주세요!</div>
-                    <div id="map"></div>
-                </div>
-                <script>
-                    try {{
-                        var mapContainer = document.getElementById('map'),
-                            mapOption = {{ center: new kakao.maps.LatLng({lat}, {lon}), level: 4 }};
-                        var map = new kakao.maps.Map(mapContainer, mapOption); 
-                        map.addOverlayMapTypeId(kakao.maps.MapTypeId.USE_DISTRICT);
-                        var mainPosition = new kakao.maps.LatLng({lat}, {lon}); 
-                        var mainOverlay = new kakao.maps.CustomOverlay({{position: mainPosition, content: '<div class="main-marker" style="background:#EF4444; color:white; padding:5px 10px; border-radius:15px; font-weight:900;">🏠 {p_name}</div>', yAnchor: 1}});
-                        mainOverlay.setMap(map);
-                        var ps = new kakao.maps.services.Places(map); 
-                        // 카테고리 검색(CS2: 병원, SW8: 지하철, SC4: 학교, PM9: 우체국)
-                        var categories = [
-                            {{ code: 'SW8', text: '🚇 지하철' }},
-                            {{ code: 'CS2', text: '🏥 병원' }},
-                            {{ code: 'SC4', text: '🏫 학교' }},
-                            {{ code: 'PM9', text: '📮 우체국' }}
-                        ];
-
-                        categories.forEach(function(cat) {{
-                            ps.categorySearch(cat.code, function(data, status) {{
-                                if (status === kakao.maps.services.Status.OK) {{
-                                    for (var i=0; i<Math.min(data.length, 3); i++) {{
-                                        displayMarker(data[i], cat.text);    
-                                    }}
-                                }}
-                            }}, {{useMapBounds:true}});
-                        }});
-
-                        function displayMarker(place, prefix) {{
-                            var content = '<div class="custom-marker">' + prefix + ' ' + place.place_name + '</div>';
-                            var customOverlay = new kakao.maps.CustomOverlay({{
-                                position: new kakao.maps.LatLng(place.y, place.x),
-                                content: content
-                            }});
-                            customOverlay.setMap(map);
-                        }}
-                
-                        document.getElementById('loading').style.display = 'none';
-                    }} catch (e) {{
-                        document.getElementById('loading').innerHTML = '⚠️ 카카오API 최신 오류 발생 (개발자 API Key 확인 필요)';
-                        console.error("Kakao Map Error:", e);
-                    }}
-                </script>
-            </body>
-            </html>
-            """
-            components.html(html_kakao_district, height=570)
-
-        with anal_col:
-            st.markdown("<div class='card-title'>💡 AI 종합 시세분석 및 감정가 추적</div>", unsafe_allow_html=True)
-            court_name = p.get('court_name', '해당 관할지방법원')
-            st.markdown(f"**💰 법원 감정가:** {format_price(p_eval_val)} <span style='font-size:13px; color:#6B7280; font-weight:normal;'>(출처: {court_name})</span>", unsafe_allow_html=True)
-            if current_market_price > 0:
-                if "AI 추산" in source:
-                    st.markdown(f"**📈 AI 추측 시세:** <span style='color:#EF4444; font-weight:bold;'>{format_price(current_market_price)}</span> <br><span style='font-size:12px; color:#6B7280;'>(해당 데이터 부족으로 감정가 인근 거래정보 기반으로 AI가 추산한 예상 금액입니다)</span>", unsafe_allow_html=True)
-                else:
-                    st.markdown(f"**📊 AI 시세분석집 데이터 (출처):** <span style='color:#2563EB; font-weight:bold;'>{format_price(current_market_price)}</span> <br><span style='font-size:12px; color:#4B5563;'>🔗<b>출처 데이터:</b> {source}</span>", unsafe_allow_html=True)
-                st.markdown(f"<span style='font-size:12px; color:#2563EB; font-weight:bold;'>[{timestamp} 시세검증자료]</span>", unsafe_allow_html=True)
-                st.markdown(f"<p class='profit-highlight'>💰 실찰 예상 마진: {format_price(expected_profit)}</p>", unsafe_allow_html=True)
-                st.markdown(f"<div style='background:#F0F9FF; border:1px dashed #3B82F6; padding:10px; border-radius:8px; font-size:13px; font-weight:bold; color:#1E40AF;'>🔍 실전마진 추출 데이터 근거:<br>[AI 시세분석 {format_price(current_market_price)}] - [현재 최저가 {format_price(p_min_val)}] = 마진 {format_price(expected_profit)}<br>(실찰가 보증금 10%는 최저가 기준)</div>", unsafe_allow_html=True)
+                # [Auto-Correction] LLM 예측 오류: 감정가가 너무 낮게 측정된 경우(예: 5000만원 vs 3.7억 실제인 감정가 보정)
+                if p_eval_val < current_market_price * 0.3:
+                    p_eval_val = int(current_market_price * 1.1)  # 감정가는 보통 시세보다 약간 낮게 측정됨
+                    p_min_val = int(p_eval_val * 0.8)
             else:
-                st.error("시세분석 데이터 부족으로 집계되지 않았습니다. (매물 데이터 부족)")
+                # 시장가를 찾지 못했을 경우, 경매 감정가를 기준으로 AI 추산 시세(감정가 약 105%)를 부여하여 이탈 방지
+                current_market_price = int(p_eval_val * 1.05)
+                source = "AI 추산 (유사 물건 거래 및 감정가 기반 보정)"
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            st.write("")
-    st.markdown("<div class='card-title'>🔍 권리분석 (법률 검토보고서)</div>", unsafe_allow_html=True)
+            expected_profit = current_market_price - p_min_val if current_market_price > 0 else 0
 
-    # --- Inject Billing UI for Rights Analysis ---
-    try:
-        used_tokens = sa_engine.API_USAGE_TOKENS
-    except:
-        used_tokens = 0
-    try:
-        balance_krw = billing_db.get_balance('test_user_01')
-    except:
-        balance_krw = 6723.0
-    
-    INITIAL_CREDIT = 8100.0
-    remain_usd = balance_krw / 1350.0
-    remain_ratio = min(1.0, max(0.0, balance_krw / INITIAL_CREDIT)) if INITIAL_CREDIT > 0 else 0.0
-    
-    if st.toggle("💳 내 API 잔액 확인하기 (권리분석 1회당 약 25원~65원 소모)", value=True):
-        with st.container():
-            col_b1, col_b2, col_b3 = st.columns(3)
-            with col_b1:
-                st.metric("소모된 토큰", f"{used_tokens:,} 토큰", delta=f"약 {int(used_tokens * 0.0135):,}원 사용", delta_color="inverse")
-            with col_b2:
-                st.metric("실제 잔액", f"${remain_usd:.2f} (약 {int(balance_krw):,}원)", delta=f"-${(INITIAL_CREDIT/1350.0) - remain_usd:.2f}", delta_color="inverse")
-            with col_b3:
-                st.metric("총 결제 한도", f"${INITIAL_CREDIT/1350.0:.2f} (약 {int(INITIAL_CREDIT):,}원)")
-            st.progress(remain_ratio, text=f"남은 잔액 게이지: 약 {int(balance_krw):,}원 / {int(INITIAL_CREDIT):,}원")
-    # ---------------------------------------------
-    st.info("AI 이미지 분석을 위해 캡처한 이미지나 문서를 붙여넣으면, GPT-4 Vision AI가 즉시 권리분석을 수행합니다.")
-    
-    uploaded_files = st.file_uploader("이미지 파일 업로드 (JPG/PNG)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
-    pasted_text = st.text_area("문서 텍스트 붙여넣기 (또는 권리분석 수동 입력)", height=100)
-    
-    if st.button("직접 업로드한 파일로 AI 권리분석 수행"):
-        with st.spinner("Vision AI가 업로드된 문서를 읽고 있습니다... (약 10~15초 소요)"):
-            b64_images = []
-            if uploaded_files:
-                for uf in uploaded_files:
-                    bytes_data = uf.read()
-                    b64 = base64.b64encode(bytes_data).decode('utf-8')
-                    b64_images.append(b64)
-            
-            st.session_state['rights_data'] = sa_engine.analyze_registry_byod(text_input=pasted_text, image_b64_list=b64_images)
-    
-    rights_data = st.session_state.get('rights_data')
-    
-    if rights_data:
-        raw_registry = rights_data.get('raw_registry', '데이터 없음')
-        malso = rights_data.get('malso_standard', '확인 불가')
-        summary = rights_data.get('summary', '분석 실패')
-        safe_status = rights_data.get('safe_status', '위험')
-        
-        # HTML로 이미지와 텍스트를 출력
-        st.markdown(f"""
-        <div class='registry-box'>
-{raw_registry}
-        </div>
-        """, unsafe_allow_html=True)
-        
-        if "독해 실패" in raw_registry or malso == "확인 불가":
-            st.error("권리분석 독해 실패: 공공 데이터나 문서에서 유효한 권리 내역(말소기준 권리)을 찾지 못했습니다. 확인하신 기부 갑구/구 구문을 포함했는지 확인해 주세요.")
-        else:
-            diff = st.session_state.get('selected_prop', {}).get('diff', '없음')
-            diff_badge = "status-green" if diff == '없음' else "status-yellow"
-            st.markdown(f"<br><span class='{diff_badge}' style='font-size:14px;'>명도 이슈: {diff} | 권리 상태: {safe_status}</span>", unsafe_allow_html=True)
-            
-            st.markdown(f"""
-            **[STEP 1. 말소기준 권리 파악]**
-            AI가 독해한 결과, 기부 갑구에서 발견된 **{malso}**(가) 말소기준 권리입니다.
-            
-            {summary}
-            """)
-    else:
-        st.info("이미지 또는 텍스트를 입력하고 '직접 업로드한 파일로 AI 권리분석 수행' 버튼을 눌러주세요.")
+            st.markdown(f"<div class='premium-title' style='font-size:28px;'>{p_name}</div>", unsafe_allow_html=True)
+            # 프롭테크와 관련된 URL 직접 직결 (가격이상심 차단)
+            clean_p_name = p_name.replace(' 인근 아파트', '').replace(' 아파트매물', '')
+            encoded_p_name = urllib.parse.quote(clean_p_name)
+            st.markdown(f"<div class='alert-box' style='background-color:#F0FDF4; border-color:#22C55E; color:#166534;'>🔍<b>AI 권리분석 자료</b>: 해당 물건의 상세 규제 정보(실거래가구역 및 최신 거래정보)를 아래 링크에서 교차 검토 바랍니다.<br>👉 <a href='https://hogangnono.com/search?q={encoded_p_name}' target='_blank' style='color:#15803D; font-weight:bold; text-decoration:underline;'>호갱노노 시세체크 바로가기(클릭)</a></div>", unsafe_allow_html=True)
 
-# --------------------------------------------------------
-# STEP 4: 초정밀 투자 분석 & 수익 계산기 (상세 세팅)
-# --------------------------------------------------------
-with tab_calc:
-    if 'selected_prop' in st.session_state and st.session_state['selected_prop']:
-        p_case = st.session_state['selected_prop'].get('case_number', 'unknown')
-        p_name = st.session_state['selected_prop'].get('prop_name', 'unknown')
-        
-        try:
-            p_min_val = int(st.session_state['selected_prop'].get('price_min', 0) or 0)
-        except (ValueError, TypeError):
-            p_min_val = 0
-            
-        try:
-            p_eval_val = int(st.session_state['selected_prop'].get('price_eval', 0) or 0)
-        except (ValueError, TypeError):
-            p_eval_val = 0
-            
-        lat = st.session_state['selected_prop'].get('lat', 37.5665)
-        lon = st.session_state['selected_prop'].get('lon', 126.9780)
-    else:
-        p_case = "unknown"
-        p_name = "unknown"
-        p_min_val = 64000
-        p_eval_val = 80000
-        lat = 37.5665
-        lon = 126.9780
-        
-    col_sim, col_note = st.columns([1, 1.2])
-    
-    with col_sim:
-        st.markdown("<div class='card-title'>💰 초정밀 수익률 계산기</div>", unsafe_allow_html=True)
-        st.info("세금, 부대비용 등을 모두 고려한 실 투자 수익률을 산출합니다.")
-        
-        bid_price = st.number_input("예상 입찰가 (만원)", value=p_min_val if p_min_val > 0 else 50000, step=1000, key=f"bid_{p_case}")
-        
-        st.markdown("<br><b style='color:#1E40AF;'>[1] 대출 및 레버리지 설정</b>", unsafe_allow_html=True)
-        col_L1, col_L2 = st.columns(2)
-        with col_L1:
-            loan_amt = st.number_input("대출금 (만원)", value=int(bid_price*0.8), step=1000, key=f"loan_{p_case}")
-        with col_L2:
-            loan_rate = st.number_input("금융 대출금리 (%)", value=4.5, step=0.1, key=f"rate_{p_case}")
-            
-        st.markdown("<br><b style='color:#1E40AF;'>[2] 취득세 및 부대비용</b>", unsafe_allow_html=True)
-        tax_rate_type = st.selectbox("취득세 부과 기준", ["무주택/1주택자 (1.1~3.5%)", "조정지역 2주택 (8.4%)", "조정지역 3주택 이상 (12.4%)"])
-        if "1주택" in tax_rate_type:
-            tax_rate = 0.011 if bid_price < 60000 else 0.022
-        elif "8.4%" in tax_rate_type:
-            tax_rate = 0.084
-        else:
-            tax_rate = 0.124
-            
-        col_c1, col_c2 = st.columns(2)
-        with col_c1:
-            repair_cost = st.number_input("수리/명도 비용 (만원)", value=2000, step=100)
-        with col_c2:
-            legal_cost = st.number_input("법무/중개 등 (만원)", value=300, step=50)
-            
-        st.markdown("<br><b style='color:#1E40AF;'>[3] 임대 수익 설정</b>", unsafe_allow_html=True)
-        col_r1, col_r2 = st.columns(2)
-        with col_r1:
-            rent_deposit = st.number_input("받을 보증금 (만원)", value=5000, step=500, key=f"dep_{p_case}")
-        with col_r2:
-            rent_monthly = st.number_input("받을 월세 (만원)", value=120, step=5, key=f"mon_{p_case}")
-        
-        tax_amt = bid_price * tax_rate
-        total_additional_cost = tax_amt + repair_cost + legal_cost
-        
-        monthly_interest = (loan_amt * 10000 * (loan_rate / 100)) / 12
-        net_monthly_cashflow = (rent_monthly * 10000) - monthly_interest
-        
-        actual_investment = (bid_price - loan_amt - rent_deposit) + total_additional_cost 
-        
-        if actual_investment <= 0:
-            yield_str = "무한대 (무피 투자 달성!)"
-        else:
-            annual_net_profit = net_monthly_cashflow * 12
-            yield_pct = (annual_net_profit / (actual_investment * 10000)) * 100
-            yield_str = f"{round(yield_pct, 2)}%"
-            
-        st.markdown(f"""
-        <div style='background:#F8FAFC; border:1px solid #CBD5E1; padding:20px; border-radius:12px; font-size:15px; margin-top:15px;'>
-        <b style='color:#475569;'>실 투자금 (Equity):</b> {int(actual_investment):,} 만원<br>
-        <span style='font-size:13px; color:gray;'>(입찰가 - 대출 - 보증금 + 취득세 + 수리/부대비용)</span><br><br>
-        <b>매월 순수익 (Cash Flow):</b> <span style='color:#2563EB; font-size:22px; font-weight:900;'>{int(net_monthly_cashflow):,}원</span><br>
-        <span style='font-size:13px; color:gray;'>(월세 {int(rent_monthly):,}만원 - 이자상환 {int(monthly_interest):,}원)</span><br><br>
-        <b>연 수익률 (ROI):</b> <span style='color:red; font-size:18px; font-weight:800;'>{yield_str}</span>
-        </div>
-        """, unsafe_allow_html=True)
-        
-    with col_note:
-        st.markdown("<div class='card-title'>주변 인프라 시설 / 프롭테크 초정밀 분석</div>", unsafe_allow_html=True)
-        st.info("지역 지도를 통해 카카오 API 기반 반경 500m 내 주요 인프라 시설 브리핑입니다.")
-        infra_notes = []
-        if sa_engine:
-            with st.spinner("커뮤니티 거주자 의견 수집 중.."):
-                infra_notes = sa_engine.fetch_infrastructure_notes(p_name, lat, lon)
-                
-        if infra_notes:
-            for note in infra_notes:
-                q = note.get("exact_quote", "")
-                s = note.get("source", "")
-                st.markdown(f"""
-                <div style='border-left: 4px solid #10B981; padding-left:15px; margin-bottom:15px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'>
-                    <div style='font-style: normal; color: #1F2937; font-size: 14px; font-weight:500;'>{q}</div>
-                    <div style='margin-top: 10px;'>
-                        <a href='{s}' target='_blank' style='display:inline-block; background:#E5E7EB; color:#374151; padding:4px 10px; border-radius:4px; font-size:11px; font-weight:bold; text-decoration:none;'>가장 가까운 매장 카카오맵 상세 보기</a>
+            map_col, anal_col = st.columns([1.1, 1])
+
+            with map_col:
+                st.markdown("<div class='card-title'>📍 초정밀 현장 지도(실적 프롭테크 & 지역편집도)</div>", unsafe_allow_html=True)
+                log_agent(f"카카오맵 좌표준비 위도 {lat}, 경도 {lon}")
+
+                html_kakao_district = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=1a67748f395019b43d48caac98382575&libraries=services"></script>
+                    <style>
+                        #map {{ width: 100%; height: 550px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }}
+                        .custom-marker {{ background: #fff; border: 2px solid #2563EB; border-radius: 20px; padding: 4px 8px; font-size: 11px; font-weight: bold; color: #1E3A8A; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }}
+                        .main-marker {{ background: #EF4444; border: 2px solid white; border-radius: 20px; padding: 5px 10px; font-size: 13px; font-weight: 900; color: white; white-space: nowrap; box-shadow: 0 4px 10px rgba(239,68,68,0.5); }}
+                        #loading {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: flex; justify-content: center; align-items: center; font-weight: bold; color: #2563EB; z-index: 10; border-radius: 16px; }}
+
+        </style>
+                </head>
+                <body>
+                    <div id="map-container" style="position: relative;">
+                        <div id="loading">🔄카카오프롭맵을 로딩중입니다... 잠시만 기다려주세요!</div>
+                        <div id="map"></div>
                     </div>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.write("관련 인프라 정보를 찾지 못했습니다.")
-        
-        st.markdown("<div class='card-title' style='margin-top: 20px;'>커뮤니티 의견 발췌 (AI 분석/설명 자료 활용)</div>", unsafe_allow_html=True)
-        st.info("돈벌자 봇이 맘카페, 부동산 커뮤니티, 블로그에서 해당 지역의 실제 거주 경험 문구를 발췌했습니다.")
-        
-        reviews = []
-        if 'selected_prop' in st.session_state and st.session_state['selected_prop'] is not None and sa_engine:
-            with st.spinner("커뮤니티 거주기록 수집 중.."):
-                reviews = sa_engine.fetch_community_reviews(st.session_state['selected_prop']['prop_name'])
-                
-        if reviews:
-            for r in reviews:
-                quote = r.get("exact_quote", "")
-                src = r.get("source", "")
-                st.markdown(f"""
-                <div style='border-left: 4px solid #3B82F6; padding-left:15px; margin-bottom:15px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'>
-                    <div style='font-style: italic; color: #1F2937; font-size: 15px; font-weight:500;'>"{quote}"</div>
-                    <div style='margin-top: 10px;'>
-                        <a href='{src}' target='_blank' style='display:inline-block; background:#E5E7EB; color:#374151; padding:4px 10px; border-radius:4px; font-size:11px; font-weight:bold; text-decoration:none;'>원본 글 직접 확인하기 (체크)</a>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-    st.markdown("---")
-    st.markdown("<div class='card-title'>📈 미래 가치 및 스트레스 테스트</div>", unsafe_allow_html=True)
-    st.info("향후 5년 간의 시세 변동 예측 및 리스크를 시뮬레이션합니다.")
-    
-    col_v1, col_v2 = st.columns(2)
-    
-    with col_v1:
-        # Valuation Modeling
-        growth_rate = st.slider("연평균 예상 매매가 상승률 (%)", min_value=-5.0, max_value=15.0, value=3.0, step=0.5)
-        
-        import pandas as pd
-        import numpy as np
-        
-        base_price = bid_price if bid_price > 0 else 50000
-        years = [0, 1, 2, 3, 4, 5]
-        
-        # 보수적, 중도적, 낙관적 시나리오
-        prices_base = [base_price * ((1 + (growth_rate)/100) ** y) for y in years]
-        prices_optimistic = [base_price * ((1 + (growth_rate + 3)/100) ** y) for y in years]
-        prices_pessimistic = [base_price * ((1 + (growth_rate - 3)/100) ** y) for y in years]
-        
-        df_future = pd.DataFrame({
-            "연도": [f"{2024+y}년" for y in years],
-            "예상 시세 (중립)": prices_base,
-            "예상 시세 (호재반영)": prices_optimistic,
-            "예상 시세 (보수적)": prices_pessimistic
-        }).set_index("연도")
-        
-        st.line_chart(df_future, height=250)
-        
-    with col_v2:
-        st.markdown("#### 🚨 스트레스 테스트 (금리 인상 리스크)")
-        stress_rate = loan_rate + 2.0
-        stress_interest = (loan_amt * 10000 * (stress_rate / 100)) / 12
-        stress_cashflow = (rent_monthly * 10000) - stress_interest
-        
-        if stress_cashflow > 0:
-            status_html = f"<span style='color:green; font-weight:bold;'>안전 마진 확보 (+{int(stress_cashflow):,}원)</span>"
-        else:
-            status_html = f"<span style='color:red; font-weight:bold;'>위험 (역마진 발생: {int(stress_cashflow):,}원)</span>"
-            
-        st.markdown(f"""
-        <div style='background:#FEF2F2; border:1px solid #FCA5A5; padding:15px; border-radius:8px; font-size:14px; margin-top:10px;'>
-        만약 금리가 <b>{stress_rate}%</b> (+2.0%p) 로 급등한다면?<br><br>
-        월 이자는 <b>{int(stress_interest):,}원</b>으로 증가하며,<br>
-        월 현금흐름 상태는 {status_html} 입니다.
-        </div>
-        """, unsafe_allow_html=True)
+                    <script>
+                        try {{
+                            var mapContainer = document.getElementById('map'),
+                                mapOption = {{ center: new kakao.maps.LatLng({lat}, {lon}), level: 4 }};
+                            var map = new kakao.maps.Map(mapContainer, mapOption); 
+                            map.addOverlayMapTypeId(kakao.maps.MapTypeId.USE_DISTRICT);
+                            var mainPosition = new kakao.maps.LatLng({lat}, {lon}); 
+                            var mainOverlay = new kakao.maps.CustomOverlay({{position: mainPosition, content: '<div class="main-marker" style="background:#EF4444; color:white; padding:5px 10px; border-radius:15px; font-weight:900;">🏠 {p_name}</div>', yAnchor: 1}});
+                            mainOverlay.setMap(map);
+                            var ps = new kakao.maps.services.Places(map); 
+                            // 카테고리 검색(CS2: 병원, SW8: 지하철, SC4: 학교, PM9: 우체국)
+                            var categories = [
+                                {{ code: 'SW8', text: '🚇 지하철' }},
+                                {{ code: 'CS2', text: '🏥 병원' }},
+                                {{ code: 'SC4', text: '🏫 학교' }},
+                                {{ code: 'PM9', text: '📮 우체국' }}
+                            ];
 
+                            categories.forEach(function(cat) {{
+                                ps.categorySearch(cat.code, function(data, status) {{
+                                    if (status === kakao.maps.services.Status.OK) {{
+                                        for (var i=0; i<Math.min(data.length, 3); i++) {{
+                                            displayMarker(data[i], cat.text);    
+                                        }}
+                                    }}
+                                }}, {{useMapBounds:true}});
+                            }});
 
-# --------------------------------------------------------
-with tab_redev:
-    st.markdown("<div class='card-title'>전국 3대 권역 (서울/경기/지방) 재개발/재건축 토지이용계획</div>", unsafe_allow_html=True)
-    st.info("**[AI 체크]** 버튼 클릭 시 해당 권역에서 많이 진행 중인 재개발/재건축 계획을 최신 데이터와 커뮤니티 리뷰 기반으로 실시간 교차 검증하여 보여줍니다.")
-    
-    st.markdown("""
-    <div style='background-color:#F8FAFC; padding:15px; border-radius:10px; margin-bottom:20px; border:1px solid #E2E8F0;'>
-        <div style='font-weight:bold; color:#1E2937; margin-bottom:10px; font-size:15px;'>재개발업무 진행 계획</div>
-        <div style='display:flex; justify-content:space-between; align-items:center; font-size:13px; color:#4B5563; font-weight:600;'>
-            <div style='text-align:center;'>기본계획수립</div> <div>→</div>
-            <div style='text-align:center;'>재개발구역지정</div> <div>→</div>
-            <div style='text-align:center;'>추진위원회 승인</div> <div>→</div>
-            <div style='text-align:center; color:#2563EB;'>조합설립인가</div> <div>→</div>
-            <div style='text-align:center; color:#D97706;'>사업시행인가</div> <div>→</div>
-            <div style='text-align:center; color:#DC2626;'>관리처분인가</div> <div>→</div>
-            <div style='text-align:center;'>이주 및 철거</div> <div>→</div>
-            <div style='text-align:center;'>일반분양</div> <div>→</div>
-            <div style='text-align:center;'>준공 및 입주</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    if st.button("전국 3대 권역 무작위 시뮬레이션 개시"):
-        # 고인프라 이슈를 반영한 분석 시작 (Random Pool)
-        import speedauction_engine
-        with st.spinner("데이터 소스를 스캔하여 최신 재개발 구역을 추출 및 체크 중입니다... (약 20초 소요)"):
-            zones = sa_engine.fetch_latest_redevelopment_zones() if sa_engine else ["서울 강남 3구역", "경기 광명 철산 11구역", "부산 해운대 우동 3구역"]
+                            function displayMarker(place, prefix) {{
+                                var content = '<div class="custom-marker">' + prefix + ' ' + place.place_name + '</div>';
+                                var customOverlay = new kakao.maps.CustomOverlay({{
+                                    position: new kakao.maps.LatLng(place.y, place.x),
+                                    content: content
+                                }});
+                                customOverlay.setMap(map);
+                            }}
 
-            # React DOM 에러(removeChild) 방지를 위해 컬럼 데이터를 일괄 수집
-            zone_data_list = []
-            for zone in zones:
-                log_agent(f"재개발 스캔 중: {zone}")
-                parsed_data = None
-                if sa_engine:
-                    parsed_data = sa_engine.fetch_redevelopment_info(zone)
-            
-                if not parsed_data: parsed_data = {}
-                zone_data_list.append((zone, parsed_data))
-        
-        # 데이터 수집이 모두 끝난 후 UI 업데이트
-        cols = st.columns(3)
-        for i, (zone, parsed_data) in enumerate(zone_data_list):
-            with cols[i]:
-                p_status = parsed_data.get('process_status') or "데이터 스캔 중단"
-                e_date = parsed_data.get('expected_date') or "진행 상황 확인 필요"
-                e_policy = parsed_data.get('evidence_policy') or "해당 구역에 대한 최근 거래 및 정책 공공데이터를 불러오지 못했습니다."
-                e_quote = parsed_data.get('evidence_quote') or "관련 데이터가 충분하지 않아 거래 데이터를 필터링해 차단하였습니다."
-                r_reason = parsed_data.get('recommendation_reason') or "직접 현장 방문 후 추가 분석이 필요한 구역입니다."
-                news_link = parsed_data.get('news_url', '')
-                quote_link = parsed_data.get('quote_url', '')
+                            document.getElementById('loading').style.display = 'none';
+                        }} catch (e) {{
+                            document.getElementById('loading').innerHTML = '⚠️ 카카오API 최신 오류 발생 (개발자 API Key 확인 필요)';
+                            console.error("Kakao Map Error:", e);
+                        }}
+                    </script>
+                </body>
+                </html>
+                """
+                components.html(html_kakao_district, height=570)
 
-                st.markdown(f"<div class='premium-title' style='font-size:18px; color:#2563EB;'>📍 {zone}</div>", unsafe_allow_html=True)
-        
-                now_str = datetime.datetime.now().strftime("%m-%d %H:%M:%S")
-                st.caption(f"🕒 **데이터 스캔 API 완료** ({now_str} 기준)")
-        
-                st.markdown(f"<span class='status-badge' style='background:#FEF3C7; color:#92400E;'>{p_status}</span> | <span style='font-size:13px; font-weight:bold;'>예정일: {e_date}</span>", unsafe_allow_html=True)
-        
-                st.markdown("<div class='card-title' style='font-size:14px; margin-top:15px;'>관련 법령/정책 근거</div>", unsafe_allow_html=True)
-        
-                policy_html = f"<div style='font-size:13px; color:#4B5563; background:#F3F4F6; padding:8px; border-radius:6px; margin-bottom:5px;'>{e_policy}</div>"
-                if news_link and news_link.startswith('http'):
-                    policy_html += f"<div style='font-size:12px; font-weight:bold;'><a href='{news_link}' target='_blank' style='color:#2563EB; text-decoration:none;'>🔗 정책/뉴스 전문 확인하기</a></div>"
-                st.markdown(policy_html, unsafe_allow_html=True)
-        
-                st.markdown("<div class='card-title' style='font-size:14px; margin-top:15px;'>커뮤니티 의견 인용문</div>", unsafe_allow_html=True)
-                quote_html = f"<div style='border-left: 3px solid #EF4444; padding-left:10px; font-style:italic; font-size:13px; color:#1F2937;'>\"{e_quote}\"</div>"
-                if quote_link and quote_link.startswith('http'):
-                    quote_html += f"<div style='font-size:12px; font-weight:bold; margin-top:5px;'><a href='{quote_link}' target='_blank' style='color:#EF4444; text-decoration:none;'>🔗 커뮤니티 의견 직접 확인하기</a></div>"
-                st.markdown(quote_html, unsafe_allow_html=True)
-                st.markdown("<div class='card-title' style='font-size:14px; margin-top:15px;'>추천 이유</div>", unsafe_allow_html=True)
-                st.info(r_reason)
-
-
-        # --------------------------------------------------------
-# 탭 6: 지능형 AI 부동산 비서 (Agentic UI)
-# --------------------------------------------------------
-with tab_agent:
-    st.markdown("<div class='premium-title' style='font-size:24px; margin-bottom:10px;'>🤖 AI 프롭테크 개인 비서 (V3.0 Beta)</div>", unsafe_allow_html=True)
-    
-    # API 한도 및 토큰 사용량 트래커 (자체 DB 연동)
-    try:
-        used_tokens = sa_engine.API_USAGE_TOKENS
-    except:
-        used_tokens = 0
-        
-    try:
-        balance_krw = billing_db.get_balance('test_user_01')
-    except:
-        balance_krw = 6723.0
-        
-    INITIAL_CREDIT = 8100.0 # 6 dollars * 1350
-    remain_usd = balance_krw / 1350.0
-    
-    remain_ratio = min(1.0, max(0.0, balance_krw / INITIAL_CREDIT)) if INITIAL_CREDIT > 0 else 0.0
-    
-    st.markdown("### 📊 실시간 API 빌링 대시보드")
-    col_b1, col_b2, col_b3 = st.columns(3)
-    with col_b1:
-        st.metric("소모된 토큰 (GPT-4o)", f"{used_tokens:,} 토큰", delta=f"약 {int(used_tokens * 0.0135):,}원 사용", delta_color="inverse")
-    with col_b2:
-        st.metric("실제 잔액 (USD)", f"${remain_usd:.2f} (약 {int(balance_krw):,}원)", delta=f"-${(INITIAL_CREDIT/1350.0) - remain_usd:.2f}", delta_color="inverse")
-    with col_b3:
-        st.metric("총 결제 한도", f"${INITIAL_CREDIT/1350.0:.2f} (약 {int(INITIAL_CREDIT):,}원)")
-        
-    st.progress(remain_ratio, text=f"남은 잔액 게이지: 약 {int(balance_krw):,}원 / {int(INITIAL_CREDIT):,}원")
-    st.markdown("---")
-    
-    st.markdown('''
-    <div style="background-color: #1E293B; border-left: 4px solid #38BDF8; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
-        <h4 style="color: #38BDF8; margin-top: 0; font-size: 15px;">[안내] AI 비서는 언제 토큰(비용)을 소모하나요?</h4>
-        <ul style="color: #CBD5E1; font-size: 13px; line-height: 1.6; margin-bottom: 0; padding-left: 20px;">
-            <li><b>1. 사용자의 의도 분석 (가장 적게 소모):</b> 채팅창에 입력한 문장을 분석하여 동작을 판단할 때 (평균 100~300 토큰 / 약 1원~4원)</li>
-            <li><b>2. 매물 딥스캔 & 요약:</b> 특정 지역의 물건 리스트와 상세 정보를 가져오고 정리할 때 (평균 500~1,000 토큰 / 약 7원~14원)</li>
-            <li><b>3. 재개발/재건축 구역 분석:</b> 재개발 진행 단계와 호재, 커뮤니티 의견을 분석하여 답변할 때 (평균 800~1,500 토큰 / 약 11원~20원)</li>
-            <li><b>4. 권리분석 및 등기부 스캔 (가장 많이 소모):</b> 등기부등본 전체를 읽거나 인프라 요약을 종합 판단할 때 (평균 1,500~3,000 토큰 이상 / 약 20원~40원 이상)</li>
-        </ul>
-    </div>
-    ''', unsafe_allow_html=True)
-
-    
-    st.caption("자연어로 매물 검색 및 권리분석 요청, 또는 재개발 현황에 대한 질문을 보낼 수 있습니다.")
-    
-    if "chat_history" not in st.session_state:
-        st.session_state["chat_history"] = [{"role": "assistant", "content": "안녕하세요! 자산과 관련된 지식이 궁금하시거나 경매 매물에 대해 말씀해주시면 직접 스캔하고 분석해드리겠습니다. (예: '서울 강남구 경매 아파트 찾아줘')!"}]
-
-    # Display chat messages
-    for i, msg in enumerate(st.session_state["chat_history"]):
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"], unsafe_allow_html=True)
-            if "results" in msg and msg["results"]:
-                for j, auc in enumerate(msg["results"]):
-                    with st.expander(f"🔹 {auc.get('prop_name', '알수없음')} ({auc.get('case_number', 'unknown')})"):
-                        try:
-                            p_eval = int(float(str(auc.get('price_eval', '0')).replace(',', '').replace('None', '0')))
-                        except:
-                            p_eval = 0
-                        try:
-                            p_min = int(float(str(auc.get('price_min', '0')).replace(',', '').replace('None', '0')))
-                        except:
-                            p_min = 0
-                        
-                        st.markdown(f"- ⚖️ 법원 감정가: {format_price(p_eval)}")
-                        st.markdown(f"- 📉 현재 최저가: {format_price(p_min)} ({auc.get('status', '진행')})")
-                        if st.button(f"✅ {auc.get('prop_name', '매물')} 정밀 분석 시작", key=f"btn_analyze_{i}_{j}_{auc.get('case_number', 'x')}"):
-                            st.session_state['selected_prop'] = {
-                                "prop_name": auc.get('prop_name', '알수없음'),
-                                "case_number": auc.get('case_number', 'unknown'),
-                                "price_eval": p_eval,
-                                "price_min": p_min,
-                                "lat": auc.get('lat', 37.5665),
-                                "lon": auc.get('lon', 126.9780)
-                            }
-                            st.success("매물 분석 데이터가 연동되었습니다. 화면 상단의 **[3. 지도 & 권리분석]** 또는 **[4. 투자 분석 & 계산기]** 탭으로 이동하세요!")
-
-    # Chat Input
-    if prompt := st.chat_input("하실 매물이나 궁금한 점을 자연어로 입력하세요"):
-        # Add user message to state
-        st.session_state["chat_history"].append({"role": "user", "content": prompt})
-        st.rerun()
-
-    # 프로세싱이 필요한 새로운 메시지가 있는지 확인 (마지막 메시지가 유저일 때)
-    if st.session_state["chat_history"] and st.session_state["chat_history"][-1]["role"] == "user":
-        prompt = st.session_state["chat_history"][-1]["content"]
-        with st.chat_message("assistant"):
-            with st.spinner("사용자님의 의도를 분석 중입니다..."):
-                if sa_engine:
-                    parsed_intent = sa_engine.process_chat_intent(prompt, st.session_state["chat_history"])
-                    intent = parsed_intent.get("intent", "general_chat")
-                    keyword = parsed_intent.get("keyword", "")
-                    reply = parsed_intent.get("reply", "네, 잠시만 기다려주세요.")
-                    
-                    st.markdown(reply)
-                    
-                    new_msg = {"role": "assistant", "content": reply}
-
-                    # Execute Agentic Action
-                    if intent == "search_auction" and keyword:
-                        st.info(f"🔍 '{keyword}' 기반으로 대법원 경매 및 네이버 실시간 매물을 딥스캔합니다...")
-                        results = sa_engine.fetch_live_auctions(keyword=keyword, limit=3)
-                        if results:
-                            new_msg["content"] += f"\n\n총 {len(results)}건의 추천 매물을 스캔 완료했습니다. 아래 매물을 확인하고 분석 버튼을 눌러보세요!"
-                            new_msg["results"] = results
-                            
-                            # 바로 렌더링
-                            for j, auc in enumerate(results):
-                                with st.expander(f"🔹 {auc.get('prop_name', '알수없음')} ({auc.get('case_number', 'unknown')})"):
-                                    st.markdown(f"- ⚖️ 법원 감정가: {format_price(auc.get('price_eval', 0))}")
-                                    st.markdown(f"- 📉 현재 최저가: {format_price(auc.get('price_min', 0))} ({auc.get('status', '진행')})")
-                                    # 버튼은 다음 rerun에서 생성됨
-                        else:
-                            st.warning("해당 지역에 진행 중인 적합한 경매 매물이 없습니다.")
-                            new_msg["content"] += "\n\n스캔 결과 해당 지역에 매물이 발견되지 않았습니다."
-                            
-                    elif intent == "search_redev" and keyword:
-                        st.info(f"🔍 '{keyword}' 기반 재개발/재건축 구역 분석을 시작합니다...")
-                        r_info = sa_engine.fetch_redevelopment_info(keyword)
-                        if r_info:
-                            st.success(f"📍 {r_info.get('process_status')} 단계 진행 중")
-                            st.markdown(f"- **핵심 추천 이유:** {r_info.get('recommendation_reason')}")
-                            new_msg["content"] += f"\n\n스캔 결과: **{r_info.get('process_status')}** 단계로 분석됩니다.\n핵심 이유: {r_info.get('recommendation_reason')}"
-                        else:
-                            st.warning("해당 지역의 유효한 재개발 정보를 찾을 수 없습니다.")
-                            new_msg["content"] += "\n\n해당 지역의 유효한 재개발 정보를 찾을 수 없습니다."
-                            
-                    st.session_state["chat_history"].append(new_msg)
-                    st.rerun()
+            with anal_col:
+                st.markdown("<div class='card-title'>💡 AI 종합 시세분석 및 감정가 추적</div>", unsafe_allow_html=True)
+                court_name = p.get('court_name', '해당 관할지방법원')
+                st.markdown(f"**💰 법원 감정가:** {format_price(p_eval_val)} <span style='font-size:13px; color:#6B7280; font-weight:normal;'>(출처: {court_name})</span>", unsafe_allow_html=True)
+                if current_market_price > 0:
+                    if "AI 추산" in source:
+                        st.markdown(f"**📈 AI 추측 시세:** <span style='color:#EF4444; font-weight:bold;'>{format_price(current_market_price)}</span> <br><span style='font-size:12px; color:#6B7280;'>(해당 데이터 부족으로 감정가 인근 거래정보 기반으로 AI가 추산한 예상 금액입니다)</span>", unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"**📊 AI 시세분석집 데이터 (출처):** <span style='color:#2563EB; font-weight:bold;'>{format_price(current_market_price)}</span> <br><span style='font-size:12px; color:#4B5563;'>🔗<b>출처 데이터:</b> {source}</span>", unsafe_allow_html=True)
+                    st.markdown(f"<span style='font-size:12px; color:#2563EB; font-weight:bold;'>[{timestamp} 시세검증자료]</span>", unsafe_allow_html=True)
+                    st.markdown(f"<p class='profit-highlight'>💰 실찰 예상 마진: {format_price(expected_profit)}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='background:#F0F9FF; border:1px dashed #3B82F6; padding:10px; border-radius:8px; font-size:13px; font-weight:bold; color:#1E40AF;'>🔍 실전마진 추출 데이터 근거:<br>[AI 시세분석 {format_price(current_market_price)}] - [현재 최저가 {format_price(p_min_val)}] = 마진 {format_price(expected_profit)}<br>(실찰가 보증금 10%는 최저가 기준)</div>", unsafe_allow_html=True)
                 else:
-                    st.error("AI 엔진을 불러올 수 없습니다.")
+                    st.error("시세분석 데이터 부족으로 집계되지 않았습니다. (매물 데이터 부족)")
+
+                st.write("")
+        st.markdown("<div class='card-title'>🔍 권리분석 (법률 검토보고서)</div>", unsafe_allow_html=True)
+
+        # --- Inject Billing UI for Rights Analysis ---
+        try:
+            used_tokens = sa_engine.API_USAGE_TOKENS
+        except:
+            used_tokens = 0
+        try:
+            balance_krw = billing_db.get_balance('test_user_01')
+        except:
+            balance_krw = 6723.0
+
+        INITIAL_CREDIT = 8100.0
+        remain_usd = balance_krw / 1350.0
+        remain_ratio = min(1.0, max(0.0, balance_krw / INITIAL_CREDIT)) if INITIAL_CREDIT > 0 else 0.0
+
+        if st.toggle("💳 내 API 잔액 확인하기 (권리분석 1회당 약 25원~65원 소모)", value=True):
+            with st.container():
+                col_b1, col_b2, col_b3 = st.columns(3)
+                with col_b1:
+                    st.metric("소모된 토큰", f"{used_tokens:,} 토큰", delta=f"약 {int(used_tokens * 0.0135):,}원 사용", delta_color="inverse")
+                with col_b2:
+                    st.metric("실제 잔액", f"${remain_usd:.2f} (약 {int(balance_krw):,}원)", delta=f"-${(INITIAL_CREDIT/1350.0) - remain_usd:.2f}", delta_color="inverse")
+                with col_b3:
+                    st.metric("총 결제 한도", f"${INITIAL_CREDIT/1350.0:.2f} (약 {int(INITIAL_CREDIT):,}원)")
+                st.progress(remain_ratio, text=f"남은 잔액 게이지: 약 {int(balance_krw):,}원 / {int(INITIAL_CREDIT):,}원")
+        # ---------------------------------------------
+        st.info("AI 이미지 분석을 위해 캡처한 이미지나 문서를 붙여넣으면, GPT-4 Vision AI가 즉시 권리분석을 수행합니다.")
+
+        uploaded_files = st.file_uploader("이미지 파일 업로드 (JPG/PNG)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
+        pasted_text = st.text_area("문서 텍스트 붙여넣기 (또는 권리분석 수동 입력)", height=100)
+
+        if st.button("직접 업로드한 파일로 AI 권리분석 수행"):
+            with st.spinner("Vision AI가 업로드된 문서를 읽고 있습니다... (약 10~15초 소요)"):
+                b64_images = []
+                if uploaded_files:
+                    for uf in uploaded_files:
+                        bytes_data = uf.read()
+                        b64 = base64.b64encode(bytes_data).decode('utf-8')
+                        b64_images.append(b64)
+
+                st.session_state['rights_data'] = sa_engine.analyze_registry_byod(text_input=pasted_text, image_b64_list=b64_images)
+
+        rights_data = st.session_state.get('rights_data')
+
+        if rights_data:
+            raw_registry = rights_data.get('raw_registry', '데이터 없음')
+            malso = rights_data.get('malso_standard', '확인 불가')
+            summary = rights_data.get('summary', '분석 실패')
+            safe_status = rights_data.get('safe_status', '위험')
+
+            # HTML로 이미지와 텍스트를 출력
+            st.markdown(f"""
+            <div class='registry-box'>
+    {raw_registry}
+            </div>
+            """, unsafe_allow_html=True)
+
+            if "독해 실패" in raw_registry or malso == "확인 불가":
+                st.error("권리분석 독해 실패: 공공 데이터나 문서에서 유효한 권리 내역(말소기준 권리)을 찾지 못했습니다. 확인하신 기부 갑구/구 구문을 포함했는지 확인해 주세요.")
+            else:
+                diff = st.session_state.get('selected_prop', {}).get('diff', '없음')
+                diff_badge = "status-green" if diff == '없음' else "status-yellow"
+                st.markdown(f"<br><span class='{diff_badge}' style='font-size:14px;'>명도 이슈: {diff} | 권리 상태: {safe_status}</span>", unsafe_allow_html=True)
+
+                st.markdown(f"""
+                **[STEP 1. 말소기준 권리 파악]**
+                AI가 독해한 결과, 기부 갑구에서 발견된 **{malso}**(가) 말소기준 권리입니다.
+
+                {summary}
+                """)
+        else:
+            st.info("이미지 또는 텍스트를 입력하고 '직접 업로드한 파일로 AI 권리분석 수행' 버튼을 눌러주세요.")
+
+    # --------------------------------------------------------
+    # STEP 4: 초정밀 투자 분석 & 수익 계산기 (상세 세팅)
+    # --------------------------------------------------------
+if menu == "⚖️ 권리분석 & 수익":
+    with tab_calc:
+        if 'selected_prop' in st.session_state and st.session_state['selected_prop']:
+            p_case = st.session_state['selected_prop'].get('case_number', 'unknown')
+            p_name = st.session_state['selected_prop'].get('prop_name', 'unknown')
+
+            try:
+                p_min_val = int(st.session_state['selected_prop'].get('price_min', 0) or 0)
+            except (ValueError, TypeError):
+                p_min_val = 0
+
+            try:
+                p_eval_val = int(st.session_state['selected_prop'].get('price_eval', 0) or 0)
+            except (ValueError, TypeError):
+                p_eval_val = 0
+
+            lat = st.session_state['selected_prop'].get('lat', 37.5665)
+            lon = st.session_state['selected_prop'].get('lon', 126.9780)
+        else:
+            p_case = "unknown"
+            p_name = "unknown"
+            p_min_val = 64000
+            p_eval_val = 80000
+            lat = 37.5665
+            lon = 126.9780
+
+        col_sim, col_note = st.columns([1, 1.2])
+
+        with col_sim:
+            st.markdown("<div class='card-title'>💰 초정밀 수익률 계산기</div>", unsafe_allow_html=True)
+            st.info("세금, 부대비용 등을 모두 고려한 실 투자 수익률을 산출합니다.")
+
+            bid_price = st.number_input("예상 입찰가 (만원)", value=p_min_val if p_min_val > 0 else 50000, step=1000, key=f"bid_{p_case}")
+
+            st.markdown("<br><b style='color:#1E40AF;'>[1] 대출 및 레버리지 설정</b>", unsafe_allow_html=True)
+            col_L1, col_L2 = st.columns(2)
+            with col_L1:
+                loan_amt = st.number_input("대출금 (만원)", value=int(bid_price*0.8), step=1000, key=f"loan_{p_case}")
+            with col_L2:
+                loan_rate = st.number_input("금융 대출금리 (%)", value=4.5, step=0.1, key=f"rate_{p_case}")
+
+            st.markdown("<br><b style='color:#1E40AF;'>[2] 취득세 및 부대비용</b>", unsafe_allow_html=True)
+            tax_rate_type = st.selectbox("취득세 부과 기준", ["무주택/1주택자 (1.1~3.5%)", "조정지역 2주택 (8.4%)", "조정지역 3주택 이상 (12.4%)"])
+            if "1주택" in tax_rate_type:
+                tax_rate = 0.011 if bid_price < 60000 else 0.022
+            elif "8.4%" in tax_rate_type:
+                tax_rate = 0.084
+            else:
+                tax_rate = 0.124
+
+            col_c1, col_c2 = st.columns(2)
+            with col_c1:
+                repair_cost = st.number_input("수리/명도 비용 (만원)", value=2000, step=100)
+            with col_c2:
+                legal_cost = st.number_input("법무/중개 등 (만원)", value=300, step=50)
+
+            st.markdown("<br><b style='color:#1E40AF;'>[3] 임대 수익 설정</b>", unsafe_allow_html=True)
+            col_r1, col_r2 = st.columns(2)
+            with col_r1:
+                rent_deposit = st.number_input("받을 보증금 (만원)", value=5000, step=500, key=f"dep_{p_case}")
+            with col_r2:
+                rent_monthly = st.number_input("받을 월세 (만원)", value=120, step=5, key=f"mon_{p_case}")
+
+            tax_amt = bid_price * tax_rate
+            total_additional_cost = tax_amt + repair_cost + legal_cost
+
+            monthly_interest = (loan_amt * 10000 * (loan_rate / 100)) / 12
+            net_monthly_cashflow = (rent_monthly * 10000) - monthly_interest
+
+            actual_investment = (bid_price - loan_amt - rent_deposit) + total_additional_cost 
+
+            if actual_investment <= 0:
+                yield_str = "무한대 (무피 투자 달성!)"
+            else:
+                annual_net_profit = net_monthly_cashflow * 12
+                yield_pct = (annual_net_profit / (actual_investment * 10000)) * 100
+                yield_str = f"{round(yield_pct, 2)}%"
+
+            st.markdown(f"""
+            <div style='background:#F8FAFC; border:1px solid #CBD5E1; padding:20px; border-radius:12px; font-size:15px; margin-top:15px;'>
+            <b style='color:#475569;'>실 투자금 (Equity):</b> {int(actual_investment):,} 만원<br>
+            <span style='font-size:13px; color:gray;'>(입찰가 - 대출 - 보증금 + 취득세 + 수리/부대비용)</span><br><br>
+            <b>매월 순수익 (Cash Flow):</b> <span style='color:#2563EB; font-size:22px; font-weight:900;'>{int(net_monthly_cashflow):,}원</span><br>
+            <span style='font-size:13px; color:gray;'>(월세 {int(rent_monthly):,}만원 - 이자상환 {int(monthly_interest):,}원)</span><br><br>
+            <b>연 수익률 (ROI):</b> <span style='color:red; font-size:18px; font-weight:800;'>{yield_str}</span>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_note:
+            st.markdown("<div class='card-title'>주변 인프라 시설 / 프롭테크 초정밀 분석</div>", unsafe_allow_html=True)
+            st.info("지역 지도를 통해 카카오 API 기반 반경 500m 내 주요 인프라 시설 브리핑입니다.")
+            infra_notes = []
+            if sa_engine:
+                with st.spinner("커뮤니티 거주자 의견 수집 중.."):
+                    infra_notes = sa_engine.fetch_infrastructure_notes(p_name, lat, lon)
+
+            if infra_notes:
+                for note in infra_notes:
+                    q = note.get("exact_quote", "")
+                    s = note.get("source", "")
+                    st.markdown(f"""
+                    <div style='border-left: 4px solid #10B981; padding-left:15px; margin-bottom:15px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'>
+                        <div style='font-style: normal; color: #1F2937; font-size: 14px; font-weight:500;'>{q}</div>
+                        <div style='margin-top: 10px;'>
+                            <a href='{s}' target='_blank' style='display:inline-block; background:#E5E7EB; color:#374151; padding:4px 10px; border-radius:4px; font-size:11px; font-weight:bold; text-decoration:none;'>가장 가까운 매장 카카오맵 상세 보기</a>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.write("관련 인프라 정보를 찾지 못했습니다.")
+
+            st.markdown("<div class='card-title' style='margin-top: 20px;'>커뮤니티 의견 발췌 (AI 분석/설명 자료 활용)</div>", unsafe_allow_html=True)
+            st.info("돈벌자 봇이 맘카페, 부동산 커뮤니티, 블로그에서 해당 지역의 실제 거주 경험 문구를 발췌했습니다.")
+
+            reviews = []
+            if 'selected_prop' in st.session_state and st.session_state['selected_prop'] is not None and sa_engine:
+                with st.spinner("커뮤니티 거주기록 수집 중.."):
+                    reviews = sa_engine.fetch_community_reviews(st.session_state['selected_prop']['prop_name'])
+
+            if reviews:
+                for r in reviews:
+                    quote = r.get("exact_quote", "")
+                    src = r.get("source", "")
+                    st.markdown(f"""
+                    <div style='border-left: 4px solid #3B82F6; padding-left:15px; margin-bottom:15px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'>
+                        <div style='font-style: italic; color: #1F2937; font-size: 15px; font-weight:500;'>"{quote}"</div>
+                        <div style='margin-top: 10px;'>
+                            <a href='{src}' target='_blank' style='display:inline-block; background:#E5E7EB; color:#374151; padding:4px 10px; border-radius:4px; font-size:11px; font-weight:bold; text-decoration:none;'>원본 글 직접 확인하기 (체크)</a>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.markdown("<div class='card-title'>📈 미래 가치 및 스트레스 테스트</div>", unsafe_allow_html=True)
+        st.info("향후 5년 간의 시세 변동 예측 및 리스크를 시뮬레이션합니다.")
+
+        col_v1, col_v2 = st.columns(2)
+
+        with col_v1:
+            # Valuation Modeling
+            growth_rate = st.slider("연평균 예상 매매가 상승률 (%)", min_value=-5.0, max_value=15.0, value=3.0, step=0.5)
+
+            import pandas as pd
+            import numpy as np
+
+            base_price = bid_price if bid_price > 0 else 50000
+            years = [0, 1, 2, 3, 4, 5]
+
+            # 보수적, 중도적, 낙관적 시나리오
+            prices_base = [base_price * ((1 + (growth_rate)/100) ** y) for y in years]
+            prices_optimistic = [base_price * ((1 + (growth_rate + 3)/100) ** y) for y in years]
+            prices_pessimistic = [base_price * ((1 + (growth_rate - 3)/100) ** y) for y in years]
+
+            df_future = pd.DataFrame({
+                "연도": [f"{2024+y}년" for y in years],
+                "예상 시세 (중립)": prices_base,
+                "예상 시세 (호재반영)": prices_optimistic,
+                "예상 시세 (보수적)": prices_pessimistic
+            }).set_index("연도")
+
+            st.line_chart(df_future, height=250)
+
+        with col_v2:
+            st.markdown("#### 🚨 스트레스 테스트 (금리 인상 리스크)")
+            stress_rate = loan_rate + 2.0
+            stress_interest = (loan_amt * 10000 * (stress_rate / 100)) / 12
+            stress_cashflow = (rent_monthly * 10000) - stress_interest
+
+            if stress_cashflow > 0:
+                status_html = f"<span style='color:green; font-weight:bold;'>안전 마진 확보 (+{int(stress_cashflow):,}원)</span>"
+            else:
+                status_html = f"<span style='color:red; font-weight:bold;'>위험 (역마진 발생: {int(stress_cashflow):,}원)</span>"
+
+            st.markdown(f"""
+            <div style='background:#FEF2F2; border:1px solid #FCA5A5; padding:15px; border-radius:8px; font-size:14px; margin-top:10px;'>
+            만약 금리가 <b>{stress_rate}%</b> (+2.0%p) 로 급등한다면?<br><br>
+            월 이자는 <b>{int(stress_interest):,}원</b>으로 증가하며,<br>
+            월 현금흐름 상태는 {status_html} 입니다.
+            </div>
+            """, unsafe_allow_html=True)
+
+
+    # --------------------------------------------------------
+if menu == "🔍 매물 딥스캔":
+    with tab_redev:
+        st.markdown("<div class='card-title'>전국 3대 권역 (서울/경기/지방) 재개발/재건축 토지이용계획</div>", unsafe_allow_html=True)
+        st.info("**[AI 체크]** 버튼 클릭 시 해당 권역에서 많이 진행 중인 재개발/재건축 계획을 최신 데이터와 커뮤니티 리뷰 기반으로 실시간 교차 검증하여 보여줍니다.")
+
+        st.markdown("""
+        <div style='background-color:#F8FAFC; padding:15px; border-radius:10px; margin-bottom:20px; border:1px solid #E2E8F0;'>
+            <div style='font-weight:bold; color:#1E2937; margin-bottom:10px; font-size:15px;'>재개발업무 진행 계획</div>
+            <div style='display:flex; justify-content:space-between; align-items:center; font-size:13px; color:#4B5563; font-weight:600;'>
+                <div style='text-align:center;'>기본계획수립</div> <div>→</div>
+                <div style='text-align:center;'>재개발구역지정</div> <div>→</div>
+                <div style='text-align:center;'>추진위원회 승인</div> <div>→</div>
+                <div style='text-align:center; color:#2563EB;'>조합설립인가</div> <div>→</div>
+                <div style='text-align:center; color:#D97706;'>사업시행인가</div> <div>→</div>
+                <div style='text-align:center; color:#DC2626;'>관리처분인가</div> <div>→</div>
+                <div style='text-align:center;'>이주 및 철거</div> <div>→</div>
+                <div style='text-align:center;'>일반분양</div> <div>→</div>
+                <div style='text-align:center;'>준공 및 입주</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("전국 3대 권역 무작위 시뮬레이션 개시"):
+            # 고인프라 이슈를 반영한 분석 시작 (Random Pool)
+            import speedauction_engine
+            with st.spinner("데이터 소스를 스캔하여 최신 재개발 구역을 추출 및 체크 중입니다... (약 20초 소요)"):
+                zones = sa_engine.fetch_latest_redevelopment_zones() if sa_engine else ["서울 강남 3구역", "경기 광명 철산 11구역", "부산 해운대 우동 3구역"]
+
+                # React DOM 에러(removeChild) 방지를 위해 컬럼 데이터를 일괄 수집
+                zone_data_list = []
+                for zone in zones:
+                    log_agent(f"재개발 스캔 중: {zone}")
+                    parsed_data = None
+                    if sa_engine:
+                        parsed_data = sa_engine.fetch_redevelopment_info(zone)
+
+                    if not parsed_data: parsed_data = {}
+                    zone_data_list.append((zone, parsed_data))
+
+            # 데이터 수집이 모두 끝난 후 UI 업데이트
+            cols = st.columns(3)
+            for i, (zone, parsed_data) in enumerate(zone_data_list):
+                with cols[i]:
+                    p_status = parsed_data.get('process_status') or "데이터 스캔 중단"
+                    e_date = parsed_data.get('expected_date') or "진행 상황 확인 필요"
+                    e_policy = parsed_data.get('evidence_policy') or "해당 구역에 대한 최근 거래 및 정책 공공데이터를 불러오지 못했습니다."
+                    e_quote = parsed_data.get('evidence_quote') or "관련 데이터가 충분하지 않아 거래 데이터를 필터링해 차단하였습니다."
+                    r_reason = parsed_data.get('recommendation_reason') or "직접 현장 방문 후 추가 분석이 필요한 구역입니다."
+                    news_link = parsed_data.get('news_url', '')
+                    quote_link = parsed_data.get('quote_url', '')
+
+                    st.markdown(f"<div class='premium-title' style='font-size:18px; color:#2563EB;'>📍 {zone}</div>", unsafe_allow_html=True)
+
+                    now_str = datetime.datetime.now().strftime("%m-%d %H:%M:%S")
+                    st.caption(f"🕒 **데이터 스캔 API 완료** ({now_str} 기준)")
+
+                    st.markdown(f"<span class='status-badge' style='background:#FEF3C7; color:#92400E;'>{p_status}</span> | <span style='font-size:13px; font-weight:bold;'>예정일: {e_date}</span>", unsafe_allow_html=True)
+
+                    st.markdown("<div class='card-title' style='font-size:14px; margin-top:15px;'>관련 법령/정책 근거</div>", unsafe_allow_html=True)
+
+                    policy_html = f"<div style='font-size:13px; color:#4B5563; background:#F3F4F6; padding:8px; border-radius:6px; margin-bottom:5px;'>{e_policy}</div>"
+                    if news_link and news_link.startswith('http'):
+                        policy_html += f"<div style='font-size:12px; font-weight:bold;'><a href='{news_link}' target='_blank' style='color:#2563EB; text-decoration:none;'>🔗 정책/뉴스 전문 확인하기</a></div>"
+                    st.markdown(policy_html, unsafe_allow_html=True)
+
+                    st.markdown("<div class='card-title' style='font-size:14px; margin-top:15px;'>커뮤니티 의견 인용문</div>", unsafe_allow_html=True)
+                    quote_html = f"<div style='border-left: 3px solid #EF4444; padding-left:10px; font-style:italic; font-size:13px; color:#1F2937;'>\"{e_quote}\"</div>"
+                    if quote_link and quote_link.startswith('http'):
+                        quote_html += f"<div style='font-size:12px; font-weight:bold; margin-top:5px;'><a href='{quote_link}' target='_blank' style='color:#EF4444; text-decoration:none;'>🔗 커뮤니티 의견 직접 확인하기</a></div>"
+                    st.markdown(quote_html, unsafe_allow_html=True)
+                    st.markdown("<div class='card-title' style='font-size:14px; margin-top:15px;'>추천 이유</div>", unsafe_allow_html=True)
+                    st.info(r_reason)
+
+
+            # --------------------------------------------------------
+    # 탭 6: 지능형 AI 부동산 비서 (Agentic UI)
+    # --------------------------------------------------------
+if menu == "💬 AI 맞춤형 비서":
+    with tab_agent:
+        st.markdown("<div class='premium-title' style='font-size:24px; margin-bottom:10px;'>🤖 AI 프롭테크 개인 비서 (V3.0 Beta)</div>", unsafe_allow_html=True)
+
+        # API 한도 및 토큰 사용량 트래커 (자체 DB 연동)
+        try:
+            used_tokens = sa_engine.API_USAGE_TOKENS
+        except:
+            used_tokens = 0
+
+        try:
+            balance_krw = billing_db.get_balance('test_user_01')
+        except:
+            balance_krw = 6723.0
+
+        INITIAL_CREDIT = 8100.0 # 6 dollars * 1350
+        remain_usd = balance_krw / 1350.0
+
+        remain_ratio = min(1.0, max(0.0, balance_krw / INITIAL_CREDIT)) if INITIAL_CREDIT > 0 else 0.0
+
+        st.markdown("### 📊 실시간 API 빌링 대시보드")
+        col_b1, col_b2, col_b3 = st.columns(3)
+        with col_b1:
+            st.metric("소모된 토큰 (GPT-4o)", f"{used_tokens:,} 토큰", delta=f"약 {int(used_tokens * 0.0135):,}원 사용", delta_color="inverse")
+        with col_b2:
+            st.metric("실제 잔액 (USD)", f"${remain_usd:.2f} (약 {int(balance_krw):,}원)", delta=f"-${(INITIAL_CREDIT/1350.0) - remain_usd:.2f}", delta_color="inverse")
+        with col_b3:
+            st.metric("총 결제 한도", f"${INITIAL_CREDIT/1350.0:.2f} (약 {int(INITIAL_CREDIT):,}원)")
+
+        st.progress(remain_ratio, text=f"남은 잔액 게이지: 약 {int(balance_krw):,}원 / {int(INITIAL_CREDIT):,}원")
+        st.markdown("---")
+
+        st.markdown('''
+        <div style="background-color: #1E293B; border-left: 4px solid #38BDF8; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+            <h4 style="color: #38BDF8; margin-top: 0; font-size: 15px;">[안내] AI 비서는 언제 토큰(비용)을 소모하나요?</h4>
+            <ul style="color: #CBD5E1; font-size: 13px; line-height: 1.6; margin-bottom: 0; padding-left: 20px;">
+                <li><b>1. 사용자의 의도 분석 (가장 적게 소모):</b> 채팅창에 입력한 문장을 분석하여 동작을 판단할 때 (평균 100~300 토큰 / 약 1원~4원)</li>
+                <li><b>2. 매물 딥스캔 & 요약:</b> 특정 지역의 물건 리스트와 상세 정보를 가져오고 정리할 때 (평균 500~1,000 토큰 / 약 7원~14원)</li>
+                <li><b>3. 재개발/재건축 구역 분석:</b> 재개발 진행 단계와 호재, 커뮤니티 의견을 분석하여 답변할 때 (평균 800~1,500 토큰 / 약 11원~20원)</li>
+                <li><b>4. 권리분석 및 등기부 스캔 (가장 많이 소모):</b> 등기부등본 전체를 읽거나 인프라 요약을 종합 판단할 때 (평균 1,500~3,000 토큰 이상 / 약 20원~40원 이상)</li>
+            </ul>
+        </div>
+        ''', unsafe_allow_html=True)
+
+
+        st.caption("자연어로 매물 검색 및 권리분석 요청, 또는 재개발 현황에 대한 질문을 보낼 수 있습니다.")
+
+        if "chat_history" not in st.session_state:
+            st.session_state["chat_history"] = [{"role": "assistant", "content": "안녕하세요! 자산과 관련된 지식이 궁금하시거나 경매 매물에 대해 말씀해주시면 직접 스캔하고 분석해드리겠습니다. (예: '서울 강남구 경매 아파트 찾아줘')!"}]
+
+        # Display chat messages
+        for i, msg in enumerate(st.session_state["chat_history"]):
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"], unsafe_allow_html=True)
+                if "results" in msg and msg["results"]:
+                    for j, auc in enumerate(msg["results"]):
+                        with st.expander(f"🔹 {auc.get('prop_name', '알수없음')} ({auc.get('case_number', 'unknown')})"):
+                            try:
+                                p_eval = int(float(str(auc.get('price_eval', '0')).replace(',', '').replace('None', '0')))
+                            except:
+                                p_eval = 0
+                            try:
+                                p_min = int(float(str(auc.get('price_min', '0')).replace(',', '').replace('None', '0')))
+                            except:
+                                p_min = 0
+
+                            st.markdown(f"- ⚖️ 법원 감정가: {format_price(p_eval)}")
+                            st.markdown(f"- 📉 현재 최저가: {format_price(p_min)} ({auc.get('status', '진행')})")
+                            if st.button(f"✅ {auc.get('prop_name', '매물')} 정밀 분석 시작", key=f"btn_analyze_{i}_{j}_{auc.get('case_number', 'x')}"):
+                                st.session_state['selected_prop'] = {
+                                    "prop_name": auc.get('prop_name', '알수없음'),
+                                    "case_number": auc.get('case_number', 'unknown'),
+                                    "price_eval": p_eval,
+                                    "price_min": p_min,
+                                    "lat": auc.get('lat', 37.5665),
+                                    "lon": auc.get('lon', 126.9780)
+                                }
+                                st.success("매물 분석 데이터가 연동되었습니다. 화면 상단의 **[3. 지도 & 권리분석]** 또는 **[4. 투자 분석 & 계산기]** 탭으로 이동하세요!")
+
+        # Chat Input
+        if prompt := st.chat_input("하실 매물이나 궁금한 점을 자연어로 입력하세요"):
+            # Add user message to state
+            st.session_state["chat_history"].append({"role": "user", "content": prompt})
+            st.rerun()
+
+        # 프로세싱이 필요한 새로운 메시지가 있는지 확인 (마지막 메시지가 유저일 때)
+        if st.session_state["chat_history"] and st.session_state["chat_history"][-1]["role"] == "user":
+            prompt = st.session_state["chat_history"][-1]["content"]
+            with st.chat_message("assistant"):
+                with st.spinner("사용자님의 의도를 분석 중입니다..."):
+                    if sa_engine:
+                        parsed_intent = sa_engine.process_chat_intent(prompt, st.session_state["chat_history"])
+                        intent = parsed_intent.get("intent", "general_chat")
+                        keyword = parsed_intent.get("keyword", "")
+                        reply = parsed_intent.get("reply", "네, 잠시만 기다려주세요.")
+
+                        st.markdown(reply)
+
+                        new_msg = {"role": "assistant", "content": reply}
+
+                        # Execute Agentic Action
+                        if intent == "search_auction" and keyword:
+                            st.info(f"🔍 '{keyword}' 기반으로 대법원 경매 및 네이버 실시간 매물을 딥스캔합니다...")
+                            results = sa_engine.fetch_live_auctions(keyword=keyword, limit=3)
+                            if results:
+                                new_msg["content"] += f"\n\n총 {len(results)}건의 추천 매물을 스캔 완료했습니다. 아래 매물을 확인하고 분석 버튼을 눌러보세요!"
+                                new_msg["results"] = results
+
+                                # 바로 렌더링
+                                for j, auc in enumerate(results):
+                                    with st.expander(f"🔹 {auc.get('prop_name', '알수없음')} ({auc.get('case_number', 'unknown')})"):
+                                        st.markdown(f"- ⚖️ 법원 감정가: {format_price(auc.get('price_eval', 0))}")
+                                        st.markdown(f"- 📉 현재 최저가: {format_price(auc.get('price_min', 0))} ({auc.get('status', '진행')})")
+                                        # 버튼은 다음 rerun에서 생성됨
+                            else:
+                                st.warning("해당 지역에 진행 중인 적합한 경매 매물이 없습니다.")
+                                new_msg["content"] += "\n\n스캔 결과 해당 지역에 매물이 발견되지 않았습니다."
+
+                        elif intent == "search_redev" and keyword:
+                            st.info(f"🔍 '{keyword}' 기반 재개발/재건축 구역 분석을 시작합니다...")
+                            r_info = sa_engine.fetch_redevelopment_info(keyword)
+                            if r_info:
+                                st.success(f"📍 {r_info.get('process_status')} 단계 진행 중")
+                                st.markdown(f"- **핵심 추천 이유:** {r_info.get('recommendation_reason')}")
+                                new_msg["content"] += f"\n\n스캔 결과: **{r_info.get('process_status')}** 단계로 분석됩니다.\n핵심 이유: {r_info.get('recommendation_reason')}"
+                            else:
+                                st.warning("해당 지역의 유효한 재개발 정보를 찾을 수 없습니다.")
+                                new_msg["content"] += "\n\n해당 지역의 유효한 재개발 정보를 찾을 수 없습니다."
+
+                        st.session_state["chat_history"].append(new_msg)
+                        st.rerun()
+                    else:
+                        st.error("AI 엔진을 불러올 수 없습니다.")
