@@ -74,8 +74,8 @@ try:
     # Push to origin main
     p.push(repo, auth_url, b'refs/heads/main')
     print("=================================================")
-    print("🎉 백업이 성공적으로 완료되었습니다!")
-    print(f"👉 확인 URL: {GITHUB_REPO_URL}")
+    print("[Success] 백업이 성공적으로 완료되었습니다!")
+    print(f"URL: {GITHUB_REPO_URL}")
     print("=================================================")
 except Exception as e:
     print(f"[오류] 백업 전송 실패: {e}")
