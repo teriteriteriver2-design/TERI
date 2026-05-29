@@ -223,6 +223,86 @@ st.markdown("<div class='premium-title'>돈벌자</div>", unsafe_allow_html=True
 st.markdown("<div class='premium-subtitle'>한국 부동산 인공지능 자동화 플랫폼 (V17.0)</div>", unsafe_allow_html=True)
 
 import json
+import os
+
+# --- FOMO / FUD Sentiment Gauge ---
+sentiment_file = "sentiment.json"
+sentiment_data = {"score": 50, "summary": "데이터 수집 중입니다.", "level": "Neutral"}
+if os.path.exists(sentiment_file):
+    try:
+        with open(sentiment_file, "r", encoding="utf-8") as f:
+            sentiment_data = json.load(f)
+    except:
+        pass
+
+score = sentiment_data.get("score", 50)
+level = sentiment_data.get("level", "Neutral")
+summary = sentiment_data.get("summary", "")
+
+# 색상 결정 (0: Fear(빨강) -> 100: FOMO(파랑))
+if score <= 40:
+    gauge_color = "linear-gradient(90deg, #EF4444, #F87171)" # Red (Fear)
+    text_color = "#DC2626"
+elif score <= 60:
+    gauge_color = "linear-gradient(90deg, #F59E0B, #FBBF24)" # Yellow (Neutral)
+    text_color = "#D97706"
+else:
+    gauge_color = "linear-gradient(90deg, #3B82F6, #60A5FA)" # Blue (FOMO)
+    text_color = "#2563EB"
+
+evidence = sentiment_data.get("evidence", [])
+evidence_html = ""
+if evidence:
+    evidence_html += "<div style='margin-top:15px; padding-top:15px; border-top:1px dashed #CBD5E1;'>"
+    evidence_html += "<b style='color:#1E293B; font-size:13px;'>📝 커뮤니티 민심 팩트체크 (실제 인용구):</b><ul style='margin-top:8px; margin-bottom:0; padding-left:20px; font-size:13px; color:#64748B;'>"
+    for item in evidence:
+        if isinstance(item, dict):
+            q = item.get("quote", "")
+        else:
+            q = str(item)
+        q = q.replace("<", "&lt;").replace(">", "&gt;")
+        link_html = f" <a href=\"{item.get('link', '#')}\" target=\"_blank\" style=\"color:#3B82F6; text-decoration:none; font-weight:bold;\">[출처 🔗]</a>" if item.get("link") else ""
+        evidence_html += f"<li style=\"margin-bottom:6px;\">{q}{link_html}</li>"
+    evidence_html += "</ul></div>"
+
+gauge_html = f"""
+<div style="background:white; border-radius:20px; padding:25px; box-shadow:0 10px 25px rgba(0,0,0,0.05); margin-bottom:30px; border:1px solid #E5E7EB;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:15px;">
+        <div>
+            <div style="font-size:14px; font-weight:bold; color:#6B7280; text-transform:uppercase; letter-spacing:1px;">오늘의 민심</div>
+            <div style="font-size:24px; font-weight:900; color:#111827;">현재 시장 심리: <span style="color:{text_color};">{level}</span></div>
+        </div>
+        <div style="font-size:40px; font-weight:900; color:{text_color}; line-height:1;">
+            {score}<span style="font-size:20px; color:#9CA3AF;">/100</span>
+        </div>
+    </div>
+    
+    <!-- Gauge Bar -->
+    <div style="width:100%; height:12px; background:#F3F4F6; border-radius:10px; overflow:hidden; position:relative;">
+        <div style="width:{score}%; height:100%; background:{gauge_color}; border-radius:10px; transition:width 1s ease-in-out;"></div>
+        <div style="position:absolute; left:20%; top:0; bottom:0; border-left:2px solid white; opacity:0.5;"></div>
+        <div style="position:absolute; left:40%; top:0; bottom:0; border-left:2px solid white; opacity:0.5;"></div>
+        <div style="position:absolute; left:60%; top:0; bottom:0; border-left:2px solid white; opacity:0.5;"></div>
+        <div style="position:absolute; left:80%; top:0; bottom:0; border-left:2px solid white; opacity:0.5;"></div>
+    </div>
+    
+    <div style="display:flex; justify-content:space-between; font-size:12px; color:#9CA3AF; margin-top:8px; font-weight:bold;">
+        <span>Extreme Fear</span>
+        <span>Neutral</span>
+        <span>Extreme FOMO</span>
+    </div>
+    
+    <div style="margin-top:20px; background:#F8FAFC; padding:15px; border-radius:12px; border-left:4px solid {text_color}; font-size:14px; color:#475569; line-height:1.6;">
+        <b>🤖 분석 요약:</b> {summary}
+        {evidence_html}
+    </div>
+</div>
+"""
+
+
+import streamlit.components.v1 as components
+components.html("<body style=\"margin:0; padding:10px; font-family:sans-serif;\">" + gauge_html + "</body>", height=420)
+
 
 # 좌표 데이터 전처리 재배치 (V2.0 고도화 - 화면 최적화 모드)
 # 법원 경매 총량제 권역별 심층 마케팅 분석 및 네트워크(Gu/Dong) 분배 (가중치 적용)
@@ -375,13 +455,13 @@ menu = st.sidebar.radio(
 )
 
 if menu == "📊 데일리 마켓":
-    tab_cal, tab_news = st.tabs(["📅 AI 부동산 캘린더", "📰 최신 정책 뉴스"])
+    tab_cal, tab_news = st.tabs(["📅 🤖 AI 부동산 캘린더", "📰 🤖 최신 정책 뉴스"])
 elif menu == "🔍 매물 딥스캔":
-    tab_search, tab_redev = st.tabs(["🗺️ 토지이용 & 매물 스캔", "🏙️ 재개발 전망 추천"])
+    tab_search, tab_redev, tab_gap, tab_heatmap = st.tabs(["🗺️ 🤖 토지이용 & 매물 스캔", "🏙️ 🤖 재개발 전망 추천", "⚡ 🤖 AI 갭투자 스나이퍼", "🔥 🤖 전국 전세가율 히트맵"])
 elif menu == "⚖️ 권리분석 & 수익":
-    tab_map, tab_calc = st.tabs(["🤖 AI 기반 권리분석", "📈 시장 트렌드 & 수익 분석"])
+    tab_map, tab_calc = st.tabs(["🤖 AI 기반 권리분석", "📈 🤖 시장 트렌드 & 수익 분석"])
 elif menu == "💬 AI 맞춤형 비서":
-    tab_agent, = st.tabs(["💬 AI 맞춤형 비서"])
+    tab_agent, = st.tabs(["💬 🤖 AI 맞춤형 비서"])
 
 
 # --------------------------------------------------------
@@ -959,29 +1039,77 @@ if menu == "⚖️ 권리분석 & 수익":
         st.markdown("<div class='card-title'>🔍 권리분석 (법률 검토보고서)</div>", unsafe_allow_html=True)
 
         # --- Inject Billing UI for Rights Analysis ---
+        # 실시간 토큰 사용량 트래커 (OpenAI 실제 빌링 연동 기준)
+        import speedauction_engine
         try:
-            used_tokens = sa_engine.API_USAGE_TOKENS
+            session_tokens = speedauction_engine.API_USAGE_TOKENS
         except:
-            used_tokens = 0
-        try:
-            balance_krw = billing_db.get_balance('test_user_01')
-        except:
-            balance_krw = 6723.0
+            session_tokens = 0
 
-        INITIAL_CREDIT = 8100.0
-        remain_usd = balance_krw / 1350.0
+        # 사용자 OpenAI 실제 데이터 반영
+        import billing_db
+        db_balance_krw = billing_db.get_balance()
+        remain_usd = db_balance_krw / 1350.0
+        used_usd = 6.00 - remain_usd
+        
+        # 1 달러 당 대략 50,000 토큰이라고 계산 (1센트당 500토큰)
+        BASE_TOKENS = int(used_usd * 50000)
+        used_tokens = BASE_TOKENS + session_tokens
+        
+        # 실시간 세션 토큰이 있으면 추가 차감 계산
+        current_used_usd = used_usd + (session_tokens / 1000) * 0.01
+        current_remain_usd = 6.00 - current_used_usd
+        
+        INITIAL_CREDIT = 6.00 * 1350.0  # 총 $6.00
+        used_usd = current_used_usd
+        remain_usd = current_remain_usd
+        balance_krw = remain_usd * 1350.0
+
         remain_ratio = min(1.0, max(0.0, balance_krw / INITIAL_CREDIT)) if INITIAL_CREDIT > 0 else 0.0
 
         if st.toggle("💳 내 API 잔액 확인하기 (권리분석 1회당 약 25원~65원 소모)", value=True):
             with st.container():
                 col_b1, col_b2, col_b3 = st.columns(3)
                 with col_b1:
-                    st.metric("소모된 토큰", f"{used_tokens:,} 토큰", delta=f"약 {int(used_tokens * 0.0135):,}원 사용", delta_color="inverse")
+                    st.metric("소모된 토큰", f"{used_tokens:,} 토큰", delta=f"약 {int(used_usd * 1350):,}원 사용", delta_color="inverse")
                 with col_b2:
-                    st.metric("실제 잔액", f"${remain_usd:.2f} (약 {int(balance_krw):,}원)", delta=f"-${(INITIAL_CREDIT/1350.0) - remain_usd:.2f}", delta_color="inverse")
+                    st.metric("실제 잔액", f"${remain_usd:.4f} (약 {int(balance_krw):,}원)", delta=f"-${used_usd:.4f}", delta_color="inverse")
                 with col_b3:
-                    st.metric("총 결제 한도", f"${INITIAL_CREDIT/1350.0:.2f} (약 {int(INITIAL_CREDIT):,}원)")
+                    st.metric("총 결제 한도", f"${6.00:.2f} (약 {int(INITIAL_CREDIT):,}원)")
                 st.progress(remain_ratio, text=f"남은 잔액 게이지: 약 {int(balance_krw):,}원 / {int(INITIAL_CREDIT):,}원")
+        # ---------------------------------------------
+        
+        # --- 수동 가격 연동기 ---
+        if st.toggle("🛠️ 수동 가격 입력기 (토큰 절약)", value=False):
+            st.info("이곳에 매각물건명세서의 가격을 직접 입력하시면 챗봇을 거치지 않고 상단의 마진 수익이 즉시 연동됩니다.")
+            p_man = st.session_state.get('selected_prop', {}) or {}
+            
+            # 기본값 세팅
+            def_eval = int(p_man.get('price_eval', 0) or 0)
+            def_min = int(p_man.get('price_min', 0) or 0)
+            def_dep = int(p_man.get('deposit', 0) or 0)
+            def_claim = int(p_man.get('claim', 0) or 0)
+
+            col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+            with col_m1:
+                man_eval = st.number_input("법원 감정가 (원)", min_value=0, value=def_eval, step=10000000)
+            with col_m2:
+                man_min = st.number_input("현재 최저가 (원)", min_value=0, value=def_min, step=10000000)
+            with col_m3:
+                man_dep = st.number_input("보증금 (원)", min_value=0, value=def_dep, step=1000000)
+            with col_m4:
+                man_claim = st.number_input("청구금액 (원)", min_value=0, value=def_claim, step=10000000)
+            
+            if st.button("입력한 가격으로 상단 수익률 즉시 업데이트"):
+                if 'selected_prop' not in st.session_state or st.session_state['selected_prop'] is None:
+                    st.session_state['selected_prop'] = {}
+                
+                st.session_state['selected_prop']['price_eval'] = man_eval
+                st.session_state['selected_prop']['price_min'] = man_min
+                st.session_state['selected_prop']['deposit'] = man_dep
+                st.session_state['selected_prop']['claim'] = man_claim
+                st.rerun()
+        st.markdown("<hr>", unsafe_allow_html=True)
         # ---------------------------------------------
         st.info("AI 이미지 분석을 위해 캡처한 이미지나 문서를 붙여넣으면, GPT-4 Vision AI가 즉시 권리분석을 수행합니다.")
 
@@ -1022,9 +1150,6 @@ if menu == "⚖️ 권리분석 & 수익":
                 st.markdown(f"<br><span class='{diff_badge}' style='font-size:14px;'>명도 이슈: {diff} | 권리 상태: {safe_status}</span>", unsafe_allow_html=True)
 
                 st.markdown(f"""
-                **[STEP 1. 말소기준 권리 파악]**
-                AI가 독해한 결과, 기부 갑구에서 발견된 **{malso}**(가) 말소기준 권리입니다.
-
                 {summary}
                 """)
                 
@@ -1307,36 +1432,226 @@ if menu == "🔍 매물 딥스캔":
 
 
             # --------------------------------------------------------
+    with tab_gap:
+        st.markdown("<div class='card-title'>⚡ AI 자동 갭투자 시뮬레이터 (실시간 감시)</div>", unsafe_allow_html=True)
+        st.info("이 데이터는 백그라운드 깃허브 로봇(스나이퍼 봇)이 24시간 네이버 호가와 전세가를 수집하여 갭투자 비용을 계산해둔 '실제 데이터'입니다.")
+        
+        market_file = "market_data.json"
+        market_data_list = []
+        if os.path.exists(market_file):
+            try:
+                with open(market_file, "r", encoding="utf-8") as f:
+                    market_data_list = json.load(f)
+            except:
+                pass
+                
+        if not market_data_list:
+            st.warning("아직 수집된 갭투자 데이터가 없습니다. 스나이퍼 봇이 백그라운드에서 동작을 완료하면 데이터가 업데이트됩니다.")
+        else:
+            st.success(f"총 {len(market_data_list)}건의 실시간 갭투자 분석 데이터가 로드되었습니다!")
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # 메트릭 표시
+            avg_gap = sum(item["market_info"]["gap"] for item in market_data_list if item.get("market_info") and item["market_info"].get("gap", 0) > 0) / max(1, len([1 for item in market_data_list if item.get("market_info") and item["market_info"].get("gap", 0) > 0]))
+            
+            col_m1, col_m2, col_m3 = st.columns(3)
+            col_m1.metric("최근 감시 매물 수", f"{len(market_data_list)} 건")
+            col_m2.metric("평균 필요 투자 갭", f"{int(avg_gap):,} 만원")
+            col_m3.metric("마지막 업데이트", market_data_list[0]["date"])
+            
+            st.markdown("---")
+            
+            # 리스트 렌더링
+            for idx, item in enumerate(market_data_list[:10]):
+                m_info = item.get("market_info")
+                if not m_info or m_info.get("sale_min", 0) == 0:
+                    continue
+                    
+                prop_name = m_info["prop_name"]
+                sale_min = m_info["sale_min"]
+                jeonse_min = m_info["jeonse_min"]
+                gap = m_info["gap"]
+                
+                st.markdown(f"""
+                <div style='background:white; border-radius:12px; padding:20px; box-shadow:0 4px 6px rgba(0,0,0,0.05); margin-bottom:15px; border:1px solid #E5E7EB; border-left:5px solid #3B82F6;'>
+                    <h3 style='margin:0; color:#1E3A8A; font-size:20px;'>🏢 {prop_name} <span style='font-size:12px; background:#DBEAFE; color:#1D4ED8; padding:3px 8px; border-radius:20px; font-weight:normal; vertical-align:middle; margin-left:10px;'>{item['date']}</span></h3>
+                    <div style='color:#6B7280; font-size:13px; margin-bottom:15px; margin-top:5px;'>출처: {m_info.get('source', '네이버 시세')}</div>
+                    
+                    <div style='display:flex; justify-content:space-between; align-items:center;'>
+                        <div style='text-align:center; flex:1;'>
+                            <div style='color:#4B5563; font-size:13px; font-weight:bold;'>매매 호가 (최저)</div>
+                            <div style='color:#111827; font-size:18px; font-weight:900;'>{sale_min:,}만원</div>
+                        </div>
+                        <div style='color:#9CA3AF; font-size:20px;'>-</div>
+                        <div style='text-align:center; flex:1;'>
+                            <div style='color:#4B5563; font-size:13px; font-weight:bold;'>전세 시세 (최저)</div>
+                            <div style='color:#059669; font-size:18px; font-weight:900;'>{jeonse_min:,}만원</div>
+                        </div>
+                        <div style='color:#9CA3AF; font-size:20px;'>=</div>
+                        <div style='text-align:center; flex:1; background:#FEF2F2; padding:10px; border-radius:8px;'>
+                            <div style='color:#B91C1C; font-size:14px; font-weight:bold;'>필요 갭 투자금 💸</div>
+                            <div style='color:#DC2626; font-size:24px; font-weight:900;'>{gap:,}만원</div>
+                        </div>
+                    </div>
+                    <div style='margin-top:15px; text-align:right;'>
+                        <a href='{item["href"]}' target='_blank' style='text-decoration:none; background:#F3F4F6; color:#4B5563; padding:6px 12px; border-radius:6px; font-size:13px; font-weight:bold; transition:all 0.2s;'>🔗 원본글 보기</a>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+    with tab_heatmap:
+        st.markdown("<div class='card-title'>🔥 전국 전세가율 히트맵 (갭투자 최적지 스캔)</div>", unsafe_allow_html=True)
+        st.info("이 데이터는 전국 아파트 실거래가 및 네이버 호가를 취합하여 전세가율이 80% 이상인 '갭투자 위험/기회' 지역을 식별합니다.")
+        
+
+        # 실제 데이터 연동 (OpenAI 기반 실시간 시장 분석)
+        st.markdown("### 📊 권역별 전세가율 히트맵 (실시간 AI 분석 데이터)")
+        
+        # 실시간 데이터 가져오기 (spinner 적용)
+        heatmap_data_list = []
+        import speedauction_engine
+        import importlib
+        importlib.reload(speedauction_engine)
+        
+        col_title, col_btn = st.columns([3, 1])
+        with col_btn:
+            if st.button("🔄 실시간 AI 시장 스캔 (새로고침)"):
+                if 'heatmap_real_data' in st.session_state:
+                    del st.session_state['heatmap_real_data']
+                    
+        if 'heatmap_real_data' not in st.session_state:
+            with st.spinner("🤖 GPT-4o가 실시간 부동산 시장 데이터를 분석하여 전세가율 80% 이상 지역을 스캔 중입니다... (약 10초 소요)"):
+                sa = speedauction_engine.SpeedAuctionEngine()
+                st.session_state['heatmap_real_data'] = sa.fetch_jeonse_heatmap_data()
+        
+        heatmap_data_list = st.session_state['heatmap_real_data']
+        
+        import json
+        heatmap_json_str = json.dumps(heatmap_data_list, ensure_ascii=False)
+        
+        heatmap_html = f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=1a67748f395019b43d48caac98382575"></script>
+            <style>
+                #map {{ width: 100%; height: 500px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }}
+                .legend {{ position: absolute; bottom: 30px; left: 20px; z-index: 10; background: rgba(25, 30, 40, 0.95); padding: 15px; border-radius: 10px; border: 1px solid #334155; box-shadow: 0 4px 10px rgba(0,0,0,0.5); color: #F8FAFC;}}
+                .legend-title {{ font-size: 14px; font-weight: 900; margin-bottom: 8px; color: #F1F5F9; }}
+                .legend-item {{ display: flex; align-items: center; margin-bottom: 5px; font-weight: bold; font-size: 12px; color: #CBD5E1; }}
+                .color-box {{ width: 16px; height: 16px; border-radius: 4px; margin-right: 8px; }}
+            </style>
+        </head>
+        <body style="margin:0; padding:0; background: #0F172A;">
+            <div style="position: relative;">
+                <div id="map"></div>
+                <div class="legend">
+                    <div class="legend-title">전세가율 히트맵 범례</div>
+                    <div class="legend-item"><div class="color-box" style="background: rgba(239, 68, 68, 0.8);"></div> 90% 이상 (극위험/초소액 갭)</div>
+                    <div class="legend-item"><div class="color-box" style="background: rgba(245, 158, 11, 0.8);"></div> 80% ~ 90% (경고/소액 갭)</div>
+                    <div class="legend-item"><div class="color-box" style="background: rgba(59, 130, 246, 0.8);"></div> 70% 이하 (안전)</div>
+                </div>
+            </div>
+            <script>
+                var mapContainer = document.getElementById('map');
+                var heatmapData = {heatmap_json_str};
+                
+                // 첫번째 지역 기준으로 지도 중심 설정
+                var centerLat = heatmapData.length > 0 ? heatmapData[0].lat : 37.5665;
+                var centerLon = heatmapData.length > 0 ? heatmapData[0].lon : 126.9780;
+                
+                var mapOption = {{ center: new kakao.maps.LatLng(centerLat, centerLon), level: 9 }};
+                var map = new kakao.maps.Map(mapContainer, mapOption);
+                
+                // Dark Map Theme (Mockup approach)
+                map.addOverlayMapTypeId(kakao.maps.MapTypeId.USE_DISTRICT);
+                
+                heatmapData.forEach(function(d) {{
+                    var color = d.ratio >= 90 ? '#EF4444' : (d.ratio >= 80 ? '#F59E0B' : '#3B82F6');
+                    var circle = new kakao.maps.Circle({{
+                        center: new kakao.maps.LatLng(d.lat, d.lon),
+                        radius: d.ratio * 30, // 시각적 과장
+                        strokeWeight: 1,
+                        strokeColor: color,
+                        strokeOpacity: 0.8,
+                        strokeStyle: 'solid',
+                        fillColor: color,
+                        fillOpacity: 0.6
+                    }});
+                    circle.setMap(map);
+                    
+                    var content = '<div style="padding:8px; background:white; color:black; font-size:12px; border-radius:8px; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.2);">' + d.title + ' (전세율 <span style="color:'+color+';">' + d.ratio + '%</span>)</div>';
+                    var customOverlay = new kakao.maps.CustomOverlay({{
+                        position: new kakao.maps.LatLng(d.lat, d.lon),
+                        content: content,
+                        yAnchor: 1.5
+                    }});
+                    customOverlay.setMap(map);
+                }});
+            </script>
+        </body>
+        </html>
+        '''
+        
+        import streamlit.components.v1 as components
+        components.html(heatmap_html, height=520)
+        
+        st.markdown("### 🏆 AI 팩트체크: 현재 전세가율 급등 위험/기회 지역")
+        if len(heatmap_data_list) > 0:
+            for i, data in enumerate(heatmap_data_list):
+                st.markdown(f'''
+                <div style="background:#F8FAFC; border-left:4px solid #EF4444; padding:15px; border-radius:8px; margin-bottom:10px;">
+                    <div style="font-size:16px; font-weight:900; color:#111827; margin-bottom:5px;">{i+1}. {data.get("title")} <span style="color:#DC2626; font-size:14px;">(전세가율 {data.get("ratio")}%)</span></div>
+                    <div style="font-size:13px; color:#4B5563;"><b>💡 분석 근거:</b> {data.get("reason")} <a href="{data.get("link", "#")}" target="_blank" style="color:#2563EB; font-weight:bold; text-decoration:none;">[팩트체크 🔗]</a></div>
+                </div>
+                ''', unsafe_allow_html=True)
+        else:
+            st.warning("현재 스캔된 고전세가율 지역이 없습니다.")
+            # --------------------------------------------------------
+    # 탭 6: 지능형 AI 부동산 비서 (Agentic UI)
     # 탭 6: 지능형 AI 부동산 비서 (Agentic UI)
     # --------------------------------------------------------
 if menu == "💬 AI 맞춤형 비서":
     with tab_agent:
         st.markdown("<div class='premium-title' style='font-size:24px; margin-bottom:10px;'>🤖 AI 프롭테크 개인 비서 (V3.0 Beta)</div>", unsafe_allow_html=True)
 
-        # API 한도 및 토큰 사용량 트래커 (자체 DB 연동)
+        # 실시간 토큰 사용량 트래커 (OpenAI 실제 빌링 연동 기준)
+        import speedauction_engine
         try:
-            used_tokens = sa_engine.API_USAGE_TOKENS
+            session_tokens = speedauction_engine.API_USAGE_TOKENS
         except:
-            used_tokens = 0
+            session_tokens = 0
 
-        try:
-            balance_krw = billing_db.get_balance('test_user_01')
-        except:
-            balance_krw = 6723.0
-
-        INITIAL_CREDIT = 8100.0 # 6 dollars * 1350
-        remain_usd = balance_krw / 1350.0
-
+        # 사용자 OpenAI 실제 데이터 반영
+        import billing_db
+        db_balance_krw = billing_db.get_balance()
+        remain_usd = db_balance_krw / 1350.0
+        used_usd = 6.00 - remain_usd
+        
+        # 1 달러 당 대략 50,000 토큰이라고 계산 (1센트당 500토큰)
+        BASE_TOKENS = int(used_usd * 50000)
+        used_tokens = BASE_TOKENS + session_tokens
+        
+        # 실시간 세션 토큰이 있으면 추가 차감 계산
+        current_used_usd = used_usd + (session_tokens / 1000) * 0.01
+        current_remain_usd = 6.00 - current_used_usd
+        
+        INITIAL_CREDIT = 6.00 * 1350.0  # 총 $6.00
+        used_usd = current_used_usd
+        remain_usd = current_remain_usd
+        balance_krw = remain_usd * 1350.0
+        
         remain_ratio = min(1.0, max(0.0, balance_krw / INITIAL_CREDIT)) if INITIAL_CREDIT > 0 else 0.0
 
         st.markdown("### 📊 실시간 API 빌링 대시보드")
         col_b1, col_b2, col_b3 = st.columns(3)
         with col_b1:
-            st.metric("소모된 토큰 (GPT-4o)", f"{used_tokens:,} 토큰", delta=f"약 {int(used_tokens * 0.0135):,}원 사용", delta_color="inverse")
+            st.metric("소모된 토큰 (GPT-4o)", f"{used_tokens:,} 토큰", delta=f"약 {int(used_usd * 1350):,}원 사용", delta_color="inverse")
         with col_b2:
-            st.metric("실제 잔액 (USD)", f"${remain_usd:.2f} (약 {int(balance_krw):,}원)", delta=f"-${(INITIAL_CREDIT/1350.0) - remain_usd:.2f}", delta_color="inverse")
+            st.metric("실제 잔액 (USD)", f"${remain_usd:.4f} (약 {int(balance_krw):,}원)", delta=f"-${used_usd:.4f}", delta_color="inverse")
         with col_b3:
-            st.metric("총 결제 한도", f"${INITIAL_CREDIT/1350.0:.2f} (약 {int(INITIAL_CREDIT):,}원)")
+            st.metric("총 결제 한도", f"${6.00:.2f} (약 {int(INITIAL_CREDIT):,}원)")
 
         st.progress(remain_ratio, text=f"남은 잔액 게이지: 약 {int(balance_krw):,}원 / {int(INITIAL_CREDIT):,}원")
         st.markdown("---")
