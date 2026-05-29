@@ -1,10 +1,20 @@
 import time
 import os
 import datetime
+import requests
 from speedauction_engine import SpeedAuctionEngine
-from alert_server import send_telegram_alert
 
 HISTORY_FILE = "sniper_history.txt"
+SNIPER_BOT_TOKEN = "8949509854:AAEvqKT0qIkTg7bmFDhUX-UfEXY9y4KwRoY"
+TELEGRAM_CHAT_ID = "8689260957"
+
+def send_sniper_telegram_alert(message):
+    url = f"https://api.telegram.org/bot{SNIPER_BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "HTML"}
+    try:
+        requests.post(url, json=payload, timeout=5)
+    except Exception as e:
+        print(f"Telegram 전송 에러: {e}")
 
 def load_history():
     if not os.path.exists(HISTORY_FILE):
@@ -64,7 +74,7 @@ def run_sniper():
         print(f"🔥 총 {len(new_alerts)}건의 새로운 급매물 포착! 텔레그램 전송 중...")
         # 너무 많으면 상위 5개만 전송하여 스팸 방지
         for alert_msg in new_alerts[:5]:
-            send_telegram_alert(alert_msg)
+            send_sniper_telegram_alert(alert_msg)
             time.sleep(1) # 텔레그램 도배 방지
     else:
         print("👀 새로 올라온 급매물이 없습니다. 10분 뒤 다시 감시합니다.")
