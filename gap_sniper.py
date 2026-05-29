@@ -31,10 +31,12 @@ def run_sniper():
     history = load_history()
     
     # 사용자 요청 키워드 목록
-    keywords = ["급매", "우량", "재개발", "재건축", "꿀매물", "급상승", "인기", "핫플", "갭투자"]
-    queries = [f"아파트 {k}" for k in keywords] + [f"부동산 {k}" for k in keywords]
+    apt_keywords = ["급매", "우량", "재개발", "재건축", "꿀매물", "급상승", "인기", "핫플", "갭투자", "초급매", "초우량", "초핫딜", "역세권", "입지"]
+    general_keywords = ["상권", "빌라", "주택", "전원주택 마당", "전원주택"]
     
-    print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ⚡ 스나이퍼 봇 감시 시작... (타겟: 전국 아파트/부동산)")
+    queries = [f"아파트 {k}" for k in apt_keywords] + [f"부동산 {k}" for k in apt_keywords + general_keywords]
+    
+    print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ⚡ 스나이퍼 봇 감시 시작... (타겟: 전국 아파트/부동산/빌라/주택)")
     
     new_alerts = []
     
