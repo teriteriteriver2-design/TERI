@@ -70,12 +70,7 @@ def run_sniper():
         print("👀 새로 올라온 급매물이 없습니다. 10분 뒤 다시 감시합니다.")
 
 if __name__ == "__main__":
-    # 처음 실행 시 바로 한 번 스캔하고, 이후 10분마다 스캔
-    while True:
-        try:
-            run_sniper()
-        except Exception as e:
-            print("Sniper Error:", e)
-        
-        # 10분(600초) 대기
-        time.sleep(600)
+    try:
+        run_sniper()
+    except Exception as e:
+        print("Sniper Error:", e)
