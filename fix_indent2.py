@@ -1,15 +1,32 @@
-import codecs
+import os
 
-with codecs.open('app_restored.py', 'r', encoding='utf-8') as f:
+engine_file = 'C:/Users/뀽제/OneDrive/바탕 화면/BU/speedauction_engine.py'
+with open(engine_file, 'r', encoding='utf-8') as f:
     lines = f.readlines()
 
-for i in range(390, 430):
-    if lines[i].strip():
-        lines[i] = "                    " + lines[i] # 20 spaces inside for loop
+new_lines = []
+in_fetch = False
+for i, line in enumerate(lines):
+    if line.startswith('def fetch_jeonse_heatmap_data(self):'):
+        in_fetch = True
+        new_lines.append('    ' + line)
+        continue
+    
+    if in_fetch:
+        if line.startswith('def '):
+            in_fetch = False
+            new_lines.append(line)
+        else:
+            if line.strip() != "":
+                if not line.startswith('        '):
+                    new_lines.append('    ' + line.lstrip())
+                else:
+                    new_lines.append(line)
+            else:
+                new_lines.append(line)
+    else:
+        new_lines.append(line)
 
-lines[430] = "                html_map = f\"\"\"\n" # 16 spaces
-for i in range(431, 481):
-    pass # html string content doesn't need python indentation technically, but we can leave it.
-
-with codecs.open('app_restored.py', 'w', encoding='utf-8') as f:
-    f.writelines(lines)
+with open(engine_file, 'w', encoding='utf-8') as f:
+    f.writelines(new_lines)
+print("Indentation fixed")

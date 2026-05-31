@@ -1,0 +1,36 @@
+name: Hourly Sniper Bot
+
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+
+jobs:
+  run-sniper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 코드 불러오기
+        uses: actions/checkout@v4
+
+      - name: 파이썬 세팅
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 필수 패키지 설치
+        run: pip install -r requirements.txt
+
+      - name: 스나이퍼 봇 실행
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python gap_sniper.py
+
+      - name: 히스토리 저장
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add sniper_history.txt || true
+          git add market_data.json || true
+          git add pending_analysis.json || true
+          git add billing.sqlite || true
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update sniper history" && git push)

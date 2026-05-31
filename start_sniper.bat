@@ -1,11 +1,18 @@
 @echo off
-title TERI 실시간 급매 스나이퍼 봇
+title TERI Sniper Bot
 echo ==============================================
-echo [TERI 급매 스나이퍼 가동 중...]
-echo 10분마다 자동으로 네이버 카페와 블로그를 감시합니다.
-echo 이 창을 켜두시면 봇이 계속 작동합니다. (최소화 해두셔도 됩니다)
+echo [TERI Sniper Bot Running...]
+echo Scanning every 10 minutes for properties.
+echo Leave this window open to keep the bot active.
 echo ==============================================
 set PYTHONUTF8=1
 cd /d "%~dp0"
+
+:loop
+echo.
+echo [%time%] Starting Sniper Bot Scan...
 py gap_sniper.py
-pause
+echo ==============================================
+echo Waiting for 10 minutes (600 seconds)...
+timeout /t 600 /nobreak
+goto loop

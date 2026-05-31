@@ -42,7 +42,7 @@ ignored_files = ['.env']
 files_to_add = []
 for root, dirs, files in os.walk(repo_dir):
     # filter directories in-place
-    dirs[:] = [d for d in dirs if d not in ignored_dirs and not d.startswith('.')]
+    dirs[:] = [d for d in dirs if d not in ignored_dirs and (not d.startswith('.') or d == '.github')]
     
     for file in files:
         if file in ignored_files:
@@ -68,11 +68,11 @@ commit_id = p.commit(repo, message=commit_msg, author=b"AutoBackup <backup@local
 # 5. Push
 print("GitHub으로 백업을 전송합니다. 잠시만 기다려주세요...")
 try:
-    # Rename branch to main if it's currently master
-    repo.refs[b'refs/heads/main'] = commit_id
+    # Rename branch to master if it's currently master
+    repo.refs[b'refs/heads/master'] = commit_id
     
-    # Push to origin main
-    p.push(repo, auth_url, b'refs/heads/main')
+    # Push to origin master
+    p.push(repo, auth_url, b'refs/heads/master')
     print("=================================================")
     print("[Success] 백업이 성공적으로 완료되었습니다!")
     print(f"URL: {GITHUB_REPO_URL}")
