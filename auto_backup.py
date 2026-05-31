@@ -42,7 +42,7 @@ ignored_files = ['.env']
 files_to_add = []
 for root, dirs, files in os.walk(repo_dir):
     # filter directories in-place
-    dirs[:] = [d for d in dirs if d not in ignored_dirs and (not d.startswith('.') or d == '.github')]
+    dirs[:] = [d for d in dirs if d not in ignored_dirs and not d.startswith('.')]
     
     for file in files:
         if file in ignored_files:
