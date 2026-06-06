@@ -115,9 +115,12 @@ def process_message(chat_id, text):
         
         import subprocess
         update_cmd = """
+        (
+        sleep 5
         git pull origin main
         chmod +x setup_24h_bots.sh
-        nohup ./setup_24h_bots.sh > update_system.log 2>&1 &
+        nohup ./setup_24h_bots.sh > update_system.log 2>&1
+        ) &
         """
         # 백그라운드 실행으로 스스로를 안전하게 죽이고 다시 태어나도록 세팅
         subprocess.Popen(update_cmd, shell=True)
