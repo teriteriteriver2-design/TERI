@@ -1,0 +1,10 @@
+streamlit
+pandas
+requests
+openai
+duckduckgo-search
+python-dotenv
+selenium
+webdriver-manager
+beautifulsoup4
+fpdf2
